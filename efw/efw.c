@@ -12,6 +12,7 @@
 // detail: https://stackoverflow.com/questions/25254043/is-it-
 // possible-to-compare-ifdef-values-for-conditional-use
 #define LOCAL_MAC _LOCAL_MAC
+#define LOCAL_IP _LOCAL_IP
 
 #define htonll(_num) (__builtin_bswap64(_num) >> 16)
 
@@ -60,10 +61,10 @@ int fw(struct xdp_md *ctx) {
     struct iphdr *ip;
     CURSOR_ADVANCE(ip, cursor, sizeof(*ip), data_end);
 
-    if (ip->protocol != IPPROTO_TCP)
+    u32 dst_ip = ntohl(ip->daddr);
+    if (dst_ip == LOCAL_IP)
         return XDP_PASS;
 
-    u32 dst_ip = ntohl(ip->daddr);
     u64 dst_mac = 0;
     u64 *dst_mac_p = tb_ip_mac.lookup(&dst_ip);
     if (!dst_mac_p) {

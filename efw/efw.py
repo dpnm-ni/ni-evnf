@@ -3,6 +3,7 @@
 import time
 import sys
 import ctypes as ct
+import netifaces as ni
 from bcc import BPF
 from ipaddress import IPv4Address
 from getmac import get_mac_address
@@ -13,10 +14,17 @@ class EFw(object):
     def __init__(self, iface):
         super(EFw, self).__init__()
         self.iface = iface
-        self.LOCAL_MAC = self.mac_str_to_int(get_mac_address(interface=iface))
+
+        _local_ip_str = ni.ifaddresses(iface)[ni.AF_INET][0]['addr']
+        self.LOCAL_IP = int(IPv4Address(_local_ip_str))
+
+        _local_mac_str = get_mac_address(interface=iface)
+        self.LOCAL_MAC = self.mac_str_to_int(_local_mac_str)
         
         self.bpf_fw = BPF(src_file="efw.c", debug=0,
-            cflags=["-w", "-D_LOCAL_MAC=%s" % self.LOCAL_MAC])
+            cflags=["-w",
+                    "-D_LOCAL_IP=%s" % self.LOCAL_IP,
+                    "-D_LOCAL_MAC=%s" % self.LOCAL_MAC])
 
         self.fn_fw = self.bpf_fw.load_func("fw", BPF.XDP)
 
