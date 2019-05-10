@@ -72,7 +72,7 @@ int fw(struct xdp_md *ctx) {
     }
 
     eth->src = htonll(LOCAL_MAC);
-    eth->dst = *dst_mac_p;
+    eth->dst = htonll(*dst_mac_p);
 
     // reduce ttl and compute checksum
     ip->ttl = ip->ttl - 1;
