@@ -25,24 +25,24 @@ struct eth_tp {
     u16 type;
 } __attribute__((packed));
 
-static inline u16 checksum(u16 *buf, int bufsz) {
-    u32 sum = 0;
+// static inline u16 checksum(u16 *buf, int bufsz) {
+//     u32 sum = 0;
 
-    while (bufsz > 1) {
-        sum += *buf;
-        buf++;
-        bufsz -= 2;
-    }
+//     while (bufsz > 1) {
+//         sum += *buf;
+//         buf++;
+//         bufsz -= 2;
+//     }
 
-    if (bufsz == 1) {
-        sum += *(u8 *)buf;
-    }
+//     if (bufsz == 1) {
+//         sum += *(u8 *)buf;
+//     }
 
-    sum = (sum & 0xffff) + (sum >> 16);
-    sum = (sum & 0xffff) + (sum >> 16);
+//     sum = (sum & 0xffff) + (sum >> 16);
+//     sum = (sum & 0xffff) + (sum >> 16);
 
-    return ~sum;
-}
+//     return ~sum;
+// }
 
 BPF_TABLE("hash",u32, u64, tb_ip_mac, 1024);
 BPF_PERF_OUTPUT(events);
@@ -75,9 +75,9 @@ int fw(struct xdp_md *ctx) {
     eth->dst = htonll(*dst_mac_p);
 
     // reduce ttl and compute checksum
-    ip->ttl = ip->ttl - 1;
-    ip->check = 0;
-    ip->check = checksum((u16 *)ip, sizeof(struct iphdr));
+    // ip->ttl = ip->ttl - 1;
+    // ip->check = 0;
+    // ip->check = checksum((u16 *)ip, sizeof(struct iphdr));
 
     return XDP_TX;
 }
