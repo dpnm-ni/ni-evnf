@@ -1,0 +1,4 @@
+pyroute2
+netifaces
+ipaddress
+https://github.com/ghostofgoes/getmac/archive/master.tar.gz
