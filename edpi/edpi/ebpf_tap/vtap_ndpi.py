@@ -15,7 +15,7 @@ class FourTuplesFlow(ct.Structure):
 ifaceM = "veth0"
 ifaceT = "tap0"
 ipr = IPRoute()
-SOCK_PATH = "/tmp/vtap_socket"
+SOCK_PATH = "/tmp/sock_edpi"
 DETECTED = 1
 
 # unix socket to recv detected flow from nDPI

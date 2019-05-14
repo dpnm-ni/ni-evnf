@@ -65,7 +65,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
-#define SOCK_PATH "/tmp/vtap_socket"
+#define SOCK_PATH "/tmp/sock_edpi"
 
 // static int sock, t, len;
 // static struct sockaddr_un remote;
