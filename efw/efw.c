@@ -26,44 +26,61 @@ struct eth_tp {
     u16 type;
 } __attribute__((packed));
 
-// static inline u16 checksum(u16 *buf, int bufsz) {
-//     u32 sum = 0;
-
-//     while (bufsz > 1) {
-//         sum += *buf;
-//         buf++;
-//         bufsz -= 2;
-//     }
-
-//     if (bufsz == 1) {
-//         sum += *(u8 *)buf;
-//     }
-
-//     sum = (sum & 0xffff) + (sum >> 16);
-//     sum = (sum & 0xffff) + (sum >> 16);
-
-//     return ~sum;
-// }
+struct flow_id_t {
+    u32 src_ip;
+    u32 dst_ip;
+    u16 src_port;
+    u16 dst_port;
+    u16 ip_proto;
+};
 
 BPF_TABLE("hash",u32, u64, tb_ip_mac, 1024);
 BPF_PERF_OUTPUT(events);
+BPF_DEVMAP(tb_devmap, 1);
 
 int fw(struct xdp_md *ctx) {
     void* data_end = (void*)(long)ctx->data_end;
     void* cursor = (void*)(long)ctx->data;
 
-     struct eth_tp *eth;
+    /* parsing packet structure */
+
+    struct eth_tp *eth;
     CURSOR_ADVANCE(eth, cursor, sizeof(*eth), data_end);
     
     if (ntohs(eth->type) != ETHTYPE_IP)
         return XDP_PASS;
-    
+
     struct iphdr *ip;
     CURSOR_ADVANCE(ip, cursor, sizeof(*ip), data_end);
 
+    // this VNF in chain, so we might not want to process
+    // traffic that have dst_ip equal to the local ip
     u32 dst_ip = ntohl(ip->daddr);
     if (dst_ip == LOCAL_IP)
         return XDP_PASS;
+
+    /* extract 5 tuples */
+
+    struct flow_id_t flow_id = {};
+    flow_id.ip_proto = ip->protocol;
+
+    if (ip->protocol == IPPROTO_UDP) {
+        struct udphdr *udp;
+        CURSOR_ADVANCE(udp, cursor, sizeof(*udp), data_end);
+        flow_id.src_port = udp->source;
+        flow_id.dst_port = udp->dest;
+
+    } else if (ip->protocol == IPPROTO_TCP) {
+        struct tcphdr *tcp;
+        CURSOR_ADVANCE(tcp, cursor, sizeof(*tcp), data_end);
+        flow_id.src_port = tcp->source;
+        flow_id.dst_port = tcp->dest;
+    }
+
+
+
+
+    /* Forwarding */
 
     u64 dst_mac = 0;
     u64 *dst_mac_p = tb_ip_mac.lookup(&dst_ip);
@@ -75,10 +92,6 @@ int fw(struct xdp_md *ctx) {
     eth->src = htonll(LOCAL_MAC);
     eth->dst = htonll(*dst_mac_p);
 
-    // reduce ttl and compute checksum
-    // ip->ttl = ip->ttl - 1;
-    // ip->check = 0;
-    // ip->check = checksum((u16 *)ip, sizeof(struct iphdr));
-
+    // return tb_devmap.redirect_map(0, 0);
     return XDP_TX;
 }

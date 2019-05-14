@@ -2,6 +2,7 @@
 
 import time
 import sys
+import pyroute2
 import ctypes as ct
 import netifaces as ni
 from bcc import BPF
@@ -29,6 +30,11 @@ class EFw(object):
         self.fn_fw = self.bpf_fw.load_func("fw", BPF.XDP)
 
         self.tb_ip_mac = self.bpf_fw.get_table("tb_ip_mac")
+        self.tb_devmap = self.bpf_fw.get_table("tb_devmap")
+
+        ip = pyroute2.IPRoute()
+        idx = ip.link_lookup(ifname=iface)[0]
+        self.tb_devmap[ct.c_uint32(0)] = ct.c_int(idx)
 
     def mac_str_to_int(self, mac_str):
         mac_arr = mac_str.split(':')
