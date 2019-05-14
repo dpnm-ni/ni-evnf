@@ -1146,12 +1146,13 @@ static void node_idle_scan_walker(const void *node, ndpi_VISIT which, int depth,
       ndpi_thread_info[thread_id].idle_flows[ndpi_thread_info[thread_id].num_idle_flows++] = flow;
 
       //---
-      four_tuples_t idle_flow = {
+      flow_id_t idle_flow = {
         .flags = 0, // idle flow
         .src_ip = flow->src_ip,
         .dst_ip = flow->dst_ip,
         .src_port = flow->src_port,
-        .dst_port = flow->dst_port
+        .dst_port = flow->dst_port,
+        .protocol = flow->protocol,
       };
 
       pipe_push(pros, &idle_flow, 1);
@@ -2254,9 +2255,9 @@ void* send_detected_flow_infor() {
   // }
 
   // get detected flow infor from pipe and send it
-  four_tuples_t detected_flow_recv;
+  flow_id_t detected_flow_recv;
   while (pipe_pop(cons, &detected_flow_recv, 1)) {
-    if (send(sock, &detected_flow_recv, sizeof(four_tuples_t), 0) == -1) {
+    if (send(sock, &detected_flow_recv, sizeof(flow_id_t), 0) == -1) {
       perror("send");
       exit(1);
     }
@@ -2805,7 +2806,7 @@ int main(int argc, char **argv) {
 
   //---
   // create pipe for storing new detected flow
-  p = pipe_new(sizeof(four_tuples_t), 100);
+  p = pipe_new(sizeof(flow_id_t), 100);
   pros = pipe_producer_new(p);
   cons = pipe_consumer_new(p);
   

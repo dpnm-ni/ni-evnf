@@ -537,17 +537,18 @@ static struct ndpi_proto packet_processing(struct ndpi_workflow * workflow,
     flow->detection_completed = 1;
 
     //---
-    four_tuples_t detected_flow = {
+    flow_id_t detected_flow = {
       .flags = 1, // new detected protocol
       .src_ip = ntohl(flow->src_ip),
       .dst_ip = ntohl(flow->dst_ip),
       .src_port = ntohs(flow->src_port),
-      .dst_port = ntohs(flow->dst_port)
+      .dst_port = ntohs(flow->dst_port),
+      .protocol = flow->protocol,
     };
 
     pipe_push(pros, &detected_flow, 1);
     // printf("--- pushed new detected flow to pipe \n");
-    // //---
+    //---
 
     if(flow->detected_protocol.app_protocol == NDPI_PROTOCOL_UNKNOWN)
 	    flow->detected_protocol = ndpi_detection_giveup(workflow->ndpi_struct,

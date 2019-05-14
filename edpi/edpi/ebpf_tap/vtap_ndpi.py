@@ -58,13 +58,13 @@ try:
             
             # install detected flow to table
             if (d_flow.flags == 1):
-              key = tb_d_flow.Key(d_flow.src_ip, d_flow.dst_ip, d_flow.src_port, d_flow.dst_port)
-              val = tb_d_flow.Leaf(DETECTED)
-              tb_d_flow[key] = val
-              key = tb_d_flow.Key(d_flow.dst_ip, d_flow.src_ip, d_flow.dst_port, d_flow.src_port)
-              val = tb_d_flow.Leaf(DETECTED)
-              tb_d_flow[key] = val
-            # TODO: else: deleted flows
+                key = tb_d_flow.Key(d_flow.src_ip, d_flow.dst_ip, d_flow.src_port, d_flow.dst_port)
+                val = tb_d_flow.Leaf(DETECTED)
+                tb_d_flow[key] = val
+                key = tb_d_flow.Key(d_flow.dst_ip, d_flow.src_ip, d_flow.dst_port, d_flow.src_port)
+                val = tb_d_flow.Leaf(DETECTED)
+                tb_d_flow[key] = val
+                # TODO: else: deleted flows
 
 except KeyboardInterrupt:
     conn.close()

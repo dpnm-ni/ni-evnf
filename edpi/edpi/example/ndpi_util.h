@@ -34,7 +34,7 @@
 
 #define MAX_NUM_READER_THREADS     16
 #define IDLE_SCAN_PERIOD           10 /* msec (use TICK_RESOLUTION = 1000) */
-//---
+
 #define MAX_IDLE_TIME           30000 // 300 // 30000
 #define IDLE_SCAN_BUDGET         1024 // 2 // 1024
 #define NUM_ROOTS                 512
@@ -54,13 +54,15 @@
 extern pipe_producer_t* pros;
 extern pipe_consumer_t* cons;
 
-typedef struct four_tuples {
+// flow id with flags to send to edpi
+typedef struct flow_id {
   u_int32_t flags;
   u_int32_t src_ip;
   u_int32_t dst_ip;
   u_int16_t src_port;
   u_int16_t dst_port;
-} four_tuples_t;
+  u_int8_t protocol;
+} flow_id_t;
 
 // flow tracking
 typedef struct ndpi_flow_info {
