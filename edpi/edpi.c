@@ -26,6 +26,14 @@ struct eth_tp {
     u16 type;
 } __attribute__((packed));
 
+struct flow_id_t {
+    u32 src_ip;
+    u32 dst_ip;
+    u16 src_port;
+    u16 dst_port;
+    u8 ip_proto;
+}; __attribute__((packed));
+
 // static inline u16 checksum(u16 *buf, int bufsz) {
 //     u32 sum = 0;
 
@@ -46,9 +54,10 @@ struct eth_tp {
 // }
 
 BPF_TABLE("hash",u32, u64, tb_ip_mac, 1024);
+BPF_TABLE("hash", struct flow_id_t, u16, tb_detected_flow, 4096);
 BPF_PERF_OUTPUT(events);
 
-int fw(struct xdp_md *ctx) {
+int dpi(struct xdp_md *ctx) {
     void* data_end = (void*)(long)ctx->data_end;
     void* cursor = (void*)(long)ctx->data;
 
@@ -72,13 +81,38 @@ int fw(struct xdp_md *ctx) {
         return XDP_PASS;
     }
 
+    /* extract 5 tuples */
+
+    struct flow_id_t flow_id = {};
+    flow_id.ip_proto = ip->protocol;
+    flow_id.src_ip = ntohl(ip->saddr);
+    flow_id.dst_ip = ntohl(ip->daddr);
+
+    if (ip->protocol == IPPROTO_UDP) {
+        struct udphdr *udp;
+        CURSOR_ADVANCE(udp, cursor, sizeof(*udp), data_end);
+        flow_id.src_port = ntohs(udp->source);
+        flow_id.dst_port = ntohs(udp->dest);
+
+    } else if (ip->protocol == IPPROTO_TCP) {
+        struct tcphdr *tcp;
+        CURSOR_ADVANCE(tcp, cursor, sizeof(*tcp), data_end);
+        flow_id.src_port = ntohs(tcp->source);
+        flow_id.dst_port = ntohs(tcp->dest);
+    }
+
+    // bpf_trace_printk("recv pkt!\n");
+
+    /* let ndpi classify un-detected flows */
+    if (!tb_detected_flow.lookup(&flow_id)) {
+        return XDP_PASS;
+    }
+
+    /* forward detected flow */
     eth->src = htonll(LOCAL_MAC);
     eth->dst = htonll(*dst_mac_p);
 
-    // reduce ttl and compute checksum
-    // ip->ttl = ip->ttl - 1;
-    // ip->check = 0;
-    // ip->check = checksum((u16 *)ip, sizeof(struct iphdr));
+    // bpf_trace_printk("forward pkt!\n");
 
     return XDP_TX;
 }

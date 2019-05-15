@@ -539,10 +539,10 @@ static struct ndpi_proto packet_processing(struct ndpi_workflow * workflow,
     //---
     flow_id_t detected_flow = {
       .flags = 1, // new detected protocol
-      .src_ip = ntohl(flow->src_ip),
-      .dst_ip = ntohl(flow->dst_ip),
-      .src_port = ntohs(flow->src_port),
-      .dst_port = ntohs(flow->dst_port),
+      .src_ip = flow->src_ip,
+      .dst_ip = flow->dst_ip,
+      .src_port = flow->src_port,
+      .dst_port = flow->dst_port,
       .protocol = flow->protocol,
     };
 

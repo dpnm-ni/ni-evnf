@@ -32,7 +32,7 @@ struct flow_id_t {
     u16 src_port;
     u16 dst_port;
     u16 ip_proto;
-};
+}; __attribute__((packed));
 
 BPF_TABLE("hash",u32, u64, tb_ip_mac, 1024);
 BPF_PERF_OUTPUT(events);

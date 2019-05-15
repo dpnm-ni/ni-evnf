@@ -2,17 +2,26 @@
 
 import time
 import sys
+import socket, os
+import threading
 import ctypes as ct
 import netifaces as ni
 from bcc import BPF
 from ipaddress import IPv4Address
 from getmac import get_mac_address
 
+class FLowId(ct.Structure):
+    _fields_ = [ ('flags',ct.c_uint32),
+                ('src_ip',ct.c_uint32),
+                ('dst_ip',ct.c_uint32),
+                ('src_port', ct.c_uint16),
+                ('dst_port', ct.c_uint16),
+                ('protocol', ct.c_uint8)]
 
-class EFw(object):
-    """docstring for EFw"""
+class EDPI(object):
+    """docstring for EDPI"""
     def __init__(self, iface):
-        super(EFw, self).__init__()
+        super(EDPI, self).__init__()
         self.iface = iface
 
         _local_ip_str = ni.ifaddresses(iface)[ni.AF_INET][0]['addr']
@@ -21,14 +30,32 @@ class EFw(object):
         _local_mac_str = get_mac_address(interface=iface)
         self.LOCAL_MAC = self.mac_str_to_int(_local_mac_str)
         
-        self.bpf_fw = BPF(src_file="efw.c", debug=0,
+        self.bpf_dpi = BPF(src_file="edpi.c", debug=0,
             cflags=["-w",
                     "-D_LOCAL_IP=%s" % self.LOCAL_IP,
                     "-D_LOCAL_MAC=%s" % self.LOCAL_MAC])
 
-        self.fn_fw = self.bpf_fw.load_func("fw", BPF.XDP)
+        self.fn_dpi = self.bpf_dpi.load_func("dpi", BPF.XDP)
+        self.tb_ip_mac = self.bpf_dpi.get_table("tb_ip_mac")
+        self.tb_detected_flow = self.bpf_dpi.get_table("tb_detected_flow")
 
-        self.tb_ip_mac = self.bpf_fw.get_table("tb_ip_mac")
+        self.SOCK_PATH = "/tmp/sock_edpi"
+        self.DETECTED = 1
+        self.conn = self.init_unix_sock(self.SOCK_PATH)
+        
+
+    def init_unix_sock(self, sock_path):
+        # unix socket to recv detected flow from nDPI
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        try:
+            os.remove(sock_path)
+        except OSError:
+            pass
+        sock.bind(sock_path)
+        sock.listen(1)
+        conn, addr = sock.accept()
+        print "accept connection..."
+        return conn
 
     def mac_str_to_int(self, mac_str):
         mac_arr = mac_str.split(':')
@@ -43,10 +70,10 @@ class EFw(object):
         self.tb_ip_mac[k] = leaf
 
     def attach_iface(self):
-        self.bpf_fw.attach_xdp(self.iface, self.fn_fw, 0)
+        self.bpf_dpi.attach_xdp(self.iface, self.fn_dpi, 0)
 
     def detach_iface(self):
-        self.bpf_fw.remove_xdp(self.iface, 0)
+        self.bpf_dpi.remove_xdp(self.iface, 0)
 
     def open_events(self):
         def _process_event(ctx, data, size):
@@ -59,29 +86,60 @@ class EFw(object):
             self.set_tb_ip_mac(int(event.dst_ip), self.mac_str_to_int(dst_mac_str))
             print "IP to MAC: ", event.dst_ip, " - ", dst_mac_str
 
-        self.bpf_fw["events"].open_perf_buffer(_process_event, page_cnt=512)
+        self.bpf_dpi["events"].open_perf_buffer(_process_event, page_cnt=512)
 
     def poll_events(self):
-        self.bpf_fw.kprobe_poll()
+        self.bpf_dpi.kprobe_poll()
+
+    def add_detected_flow(self, d_flow):
+        # install detected flow to table
+        if (d_flow.flags == 1):
+            val = self.tb_detected_flow.Leaf(self.DETECTED)
+
+            key = self.tb_detected_flow.Key(d_flow.src_ip, d_flow.dst_ip,
+                d_flow.src_port, d_flow.dst_port, d_flow.protocol)
+            self.tb_detected_flow[key] = val
+            
+            # bidirectional flow
+            key = self.tb_detected_flow.Key(d_flow.dst_ip, d_flow.src_ip,
+                d_flow.dst_port, d_flow.src_port, d_flow.protocol)
+            self.tb_detected_flow[key] = val
+            
+            # TODO: else: deleted flows
 
 
 if __name__ == "__main__":
     iface = "ens4"
 
-    efw = EFw(iface)
-    efw.attach_iface()
-    efw.open_events()
+    edpi = EDPI(iface)
+    edpi.attach_iface()
+    edpi.open_events()
 
     print "eBPF prog Loaded"
     sys.stdout.flush()
 
+    # a separated thread to poll event
+    def _event_poll():
+        while True:
+            edpi.poll_events()
+    event_poll = threading.Thread(target=_event_poll)
+    event_poll.daemon = True
+    event_poll.start()
+
+    # listen to ndpi for detected flow
     try:
         while 1:
-            efw.poll_events()
+            d_flow = FLowId()
+            read_d_flow = edpi.conn.recv_into(d_flow)
+            if (read_d_flow):
+                print "new flow: ", d_flow.dst_ip, d_flow.src_ip, \
+                    d_flow.dst_port, d_flow.src_port, d_flow.protocol
+                edpi.add_detected_flow(d_flow)
 
     except KeyboardInterrupt:
         pass
 
     finally:
-        efw.detach_iface()
+        edpi.detach_iface()
+        edpi.conn.close()
         print "Done"
