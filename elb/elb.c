@@ -34,24 +34,36 @@ struct flow_id_t {
     u16 dst_port;
 }; __attribute__((packed));
 
-// static inline u16 checksum(u16 *buf, int bufsz) {
-//     u32 sum = 0;
+static inline u16 checksum(u16 *buf, int bufsz) {
+    u32 sum = 0;
 
-//     while (bufsz > 1) {
-//         sum += *buf;
-//         buf++;
-//         bufsz -= 2;
-//     }
+    while (bufsz > 1) {
+        sum += *buf;
+        buf++;
+        bufsz -= 2;
+    }
 
-//     if (bufsz == 1) {
-//         sum += *(u8 *)buf;
-//     }
+    if (bufsz == 1) {
+        sum += *(u8 *)buf;
+    }
 
-//     sum = (sum & 0xffff) + (sum >> 16);
-//     sum = (sum & 0xffff) + (sum >> 16);
+    sum = (sum & 0xffff) + (sum >> 16);
+    sum = (sum & 0xffff) + (sum >> 16);
 
-//     return ~sum;
-// }
+    return ~sum;
+}
+
+// see: https://lkml.org/lkml/2003/9/17/24
+// but fold the sum l two times
+
+static inline u16 incr_checksum(u16 old_check, u16 old, u16 new){
+    u32 sum;
+    old_check = ~ntohs(old_check);
+    old = ~old;
+    sum = (u32)old_check + old + new;
+    sum = (sum & 0xffff) + (sum >> 16);
+    return htons(~( (u16)(sum >> 16) + (sum & 0xffff) ));
+}
 
 BPF_TABLE("hash",u32, u64, tb_ip_mac, 1024);
 BPF_PERF_OUTPUT(events);
@@ -107,21 +119,10 @@ int lb(struct xdp_md *ctx) {
 
     /* recompute checksum */
 
-    // ip checksum
-    u32 sum_new = ntohs(ip->check) + ip_sub_old + ~ip_sub_new;
-    sum_new = (sum_new & 0xffff) + (sum_new >> 16);
-    ip->check = htons((sum_new & 0xffff) + (sum_new >> 16) + 1);
-
+    ip->check = incr_checksum(ip->check, ip_sub_old, ip_sub_new);
+    tcp->check = incr_checksum(tcp->check, ip_sub_old, ip_sub_new);
     // ip->check = 0;
-    // u16 sum_correct = checksum((u16 *)ip, sizeof(struct iphdr));
-    // if (sum_new - sum_correct != 0)
-    //     bpf_trace_printk("sum new: %u, correct: %u, proto %d\n",
-    //         sum_new, sum_correct, ip->protocol);
-
-    // tcpchecksum
-    sum_new = ntohs(tcp->check) + ip_sub_old + ~ip_sub_new;
-    sum_new = (sum_new & 0xffff) + (sum_new >> 16);
-    tcp->check = htons((sum_new & 0xffff) + (sum_new >> 16) + 1);
+    // ip->check = checksum((u16 *)ip, sizeof(struct iphdr));
 
     /* Forwarding */
 
