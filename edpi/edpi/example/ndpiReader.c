@@ -66,6 +66,7 @@
 #include <sys/un.h>
 
 #define SOCK_PATH "/tmp/sock_edpi"
+#define PIPE_SIZE 10000
 
 // static int sock, t, len;
 // static struct sockaddr_un remote;
@@ -2806,7 +2807,7 @@ int main(int argc, char **argv) {
 
   //---
   // create pipe for storing new detected flow
-  p = pipe_new(sizeof(flow_id_t), 100);
+  p = pipe_new(sizeof(flow_id_t), PIPE_SIZE);
   pros = pipe_producer_new(p);
   cons = pipe_consumer_new(p);
   
