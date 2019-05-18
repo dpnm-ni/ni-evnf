@@ -54,7 +54,7 @@ struct flow_id_t {
 // }
 
 BPF_TABLE("hash",u32, u64, tb_ip_mac, 1024);
-BPF_TABLE("hash", struct flow_id_t, u16, tb_detected_flow, 4096);
+BPF_TABLE("hash", struct flow_id_t, u16, tb_detected_flow, 200000);
 BPF_PERF_OUTPUT(events);
 
 int dpi(struct xdp_md *ctx) {
@@ -81,24 +81,24 @@ int dpi(struct xdp_md *ctx) {
         return XDP_PASS;
     }
 
-    /* extract 5 tuples */
+    /* extract 5 tuples. intentionally use network byte order */
 
     struct flow_id_t flow_id = {};
     flow_id.ip_proto = ip->protocol;
-    flow_id.src_ip = ntohl(ip->saddr);
-    flow_id.dst_ip = ntohl(ip->daddr);
+    flow_id.src_ip = ip->saddr;
+    flow_id.dst_ip = ip->daddr;
 
     if (ip->protocol == IPPROTO_UDP) {
         struct udphdr *udp;
         CURSOR_ADVANCE(udp, cursor, sizeof(*udp), data_end);
-        flow_id.src_port = ntohs(udp->source);
-        flow_id.dst_port = ntohs(udp->dest);
+        flow_id.src_port = udp->source;
+        flow_id.dst_port = udp->dest;
 
     } else if (ip->protocol == IPPROTO_TCP) {
         struct tcphdr *tcp;
         CURSOR_ADVANCE(tcp, cursor, sizeof(*tcp), data_end);
-        flow_id.src_port = ntohs(tcp->source);
-        flow_id.dst_port = ntohs(tcp->dest);
+        flow_id.src_port = tcp->source;
+        flow_id.dst_port = tcp->dest;
     }
 
     // bpf_trace_printk("recv pkt!\n");

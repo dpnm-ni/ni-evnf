@@ -127,14 +127,13 @@ if __name__ == "__main__":
     event_poll.start()
 
     # listen to ndpi for detected flow
+    d_flow = FLowId()
     try:
         while 1:
-            d_flow = FLowId()
-            read_d_flow = edpi.conn.recv_into(d_flow)
-            if (read_d_flow):
-                print "new flow: ", d_flow.dst_ip, d_flow.src_ip, \
-                    d_flow.dst_port, d_flow.src_port, d_flow.protocol
+            if (edpi.conn.recv_into(d_flow)):
                 edpi.add_detected_flow(d_flow)
+                # print "new flow: ", d_flow.dst_ip, d_flow.src_ip, \
+                #     d_flow.dst_port, d_flow.src_port, d_flow.protocol
 
     except KeyboardInterrupt:
         pass
