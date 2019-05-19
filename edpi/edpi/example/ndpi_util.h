@@ -56,7 +56,7 @@ extern pipe_consumer_t* cons;
 
 //--- flow id with flags to send to edpi
 typedef struct flow_id {
-  u_int32_t flags;
+  u_int8_t flags;
   u_int32_t src_ip;
   u_int32_t dst_ip;
   u_int16_t src_port;

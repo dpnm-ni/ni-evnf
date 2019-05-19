@@ -1,17 +1,21 @@
-#!/usr/bin/python
-
 import time
 import sys
 import socket, os
 import threading
-import ctypes as ct
 import netifaces as ni
 from bcc import BPF
 from ipaddress import IPv4Address
 from getmac import get_mac_address
-
 import pyximport; pyximport.install()
-from cy_edpi import CyEDPI
+import ctypes as ct
+
+cdef packed struct CyFlowID:
+    unsigned char  flags
+    unsigned int   src_ip
+    unsigned int   dst_ip
+    unsigned short src_port
+    unsigned short dst_port
+    unsigned char protocol
 
 class FLowId(ct.Structure):
     _fields_ = [ ('flags',ct.c_uint8),
@@ -21,10 +25,10 @@ class FLowId(ct.Structure):
                 ('dst_port', ct.c_uint16),
                 ('protocol', ct.c_uint8)]
 
-class EDPI(object):
-    """docstring for EDPI"""
+class CyEDPI(object):
+    """docstring for CyEDPI"""
     def __init__(self, iface):
-        super(EDPI, self).__init__()
+        super(CyEDPI, self).__init__()
         self.iface = iface
 
         _local_ip_str = ni.ifaddresses(iface)[ni.AF_INET][0]['addr']
@@ -43,7 +47,8 @@ class EDPI(object):
         self.tb_detected_flow = self.bpf_dpi.get_table("tb_detected_flow")
 
         self.SOCK_PATH = "/tmp/sock_edpi"
-        self.DETECTED = 1
+        self.DETECTED = self.tb_detected_flow.Leaf(1)
+        self.d_flow = FLowId()
         self.conn = self.init_unix_sock(self.SOCK_PATH)
         
 
@@ -94,61 +99,18 @@ class EDPI(object):
     def poll_events(self):
         self.bpf_dpi.kprobe_poll()
 
-    def add_detected_flow(self, d_flow):
+    def add_detected_flow(self):
         # install detected flow to table
-        if (d_flow.flags == 1):
-            val = self.tb_detected_flow.Leaf(self.DETECTED)
+        # cdef CyFlowID d_flow
+        if (self.conn.recv_into(self.d_flow)):
+            if (self.d_flow.flags == 1):
 
-            key = self.tb_detected_flow.Key(d_flow.src_ip, d_flow.dst_ip,
-                d_flow.src_port, d_flow.dst_port, d_flow.protocol)
-            self.tb_detected_flow[key] = val
-            
-            # bidirectional flow
-            key = self.tb_detected_flow.Key(d_flow.dst_ip, d_flow.src_ip,
-                d_flow.dst_port, d_flow.src_port, d_flow.protocol)
-            self.tb_detected_flow[key] = val
-            
+                key = self.tb_detected_flow.Key(self.d_flow.src_ip, self.d_flow.dst_ip,
+                    self.d_flow.src_port, self.d_flow.dst_port, self.d_flow.protocol)
+                self.tb_detected_flow[key] = self.DETECTED
+
+                # print "new flow: ", self.d_flow.src_ip, self.d_flow.dst_ip, \
+                #     self.d_flow.src_port, self.d_flow.dst_port
+                # sys.stdout.flush()
+
             # TODO: else: deleted flows
-
-
-if __name__ == "__main__":
-    iface = "ens4"
-
-    # edpi = EDPI(iface)
-    edpi = CyEDPI(iface)
-    edpi.attach_iface()
-    edpi.open_events()
-
-    print "eBPF prog Loaded"
-    sys.stdout.flush()
-
-    # a separated thread to poll event
-    def _event_poll():
-        try:
-            while True:
-                edpi.poll_events()
-        except:
-            pass
-    event_poll = threading.Thread(target=_event_poll)
-    event_poll.daemon = True
-    event_poll.start()
-
-    # listen to ndpi for detected flow
-    try:
-        while 1:
-            edpi.add_detected_flow()
-    # d_flow = FLowId()
-    # try:
-    #     while 1:
-    #         if (edpi.conn.recv_into(d_flow)):
-    #             edpi.add_detected_flow(d_flow)
-                # print "new flow: ", d_flow.dst_ip, d_flow.src_ip, \
-                #     d_flow.dst_port, d_flow.src_port, d_flow.protocol
-
-    except KeyboardInterrupt:
-        pass
-
-    finally:
-        edpi.detach_iface()
-        edpi.conn.close()
-        print "Done"

@@ -105,7 +105,19 @@ int dpi(struct xdp_md *ctx) {
 
     /* let ndpi classify un-detected flows */
     if (!tb_detected_flow.lookup(&flow_id)) {
-        return XDP_PASS;
+        // bi-directional flow checking
+        u32 tmp;
+        // swap port
+        tmp = flow_id.src_port;
+        flow_id.src_port = flow_id.dst_port;
+        flow_id.dst_port = tmp;
+        // swap ip
+        tmp = flow_id.src_ip;
+        flow_id.src_ip = flow_id.dst_ip;
+        flow_id.dst_ip = tmp;
+
+        if (!tb_detected_flow.lookup(&flow_id))
+            return XDP_PASS;
     }
 
     /* forward detected flow */
