@@ -3,6 +3,7 @@
 import time
 import sys
 import threading
+import random
 import ctypes as ct
 import netifaces as ni
 from bcc import BPF
@@ -19,7 +20,6 @@ class ELB(object):
         self.s_ips_str = s_ips_str
         self.s_ips = [int(IPv4Address(s_ip_str)) for s_ip_str in s_ips_str]
         self.HASHMAP_SIZE = 256
-        self.s_hashmap = [0 for _ in range(0, self.HASHMAP_SIZE)]
         self.s_weights = [self.HASHMAP_SIZE/len(s_ips_str) for _ in range(0, len(s_ips_str))]
         self.s_frees = [0 for _ in range(0, self.HASHMAP_SIZE)]
 
@@ -111,18 +111,18 @@ class ELB(object):
             num_of_sched = max(1, int(s_weights_w_load[i] * self.HASHMAP_SIZE / sum_weight))
             new_s_hashmap.extend([self.s_ips[i] for _ in range(0, num_of_sched)])
 
-        if len(new_s_hashmap) < len(self.s_hashmap):
-            new_s_hashmap.extend([self.s_ips[-1] for _ in range(len(new_s_hashmap), len(self.s_hashmap))])
+        if len(new_s_hashmap) < self.HASHMAP_SIZE:
+            new_s_hashmap.extend([self.s_ips[-1] for _ in range(len(new_s_hashmap), self.HASHMAP_SIZE)])
 
+        random.shuffle(new_s_hashmap)
         return new_s_hashmap
+        # return random.shuffle(new_s_hashmap)
 
     def update_s_hashmap(self, new_s_hashmap):
         for i in range(0, len(new_s_hashmap)):
-            if(new_s_hashmap[i] == self.s_hashmap[i]):
-                continue
             k = self.tb_server_ips.Key(i)
             leaf = self.tb_server_ips.Leaf(new_s_hashmap[i])
-            print "update mapping: ", i, ": ", new_s_hashmap[i]
+            # print "update mapping: ", i, ": ", new_s_hashmap[i]
             self.tb_server_ips[k] = leaf
         self.new_s_hashmap = new_s_hashmap
 

@@ -48,14 +48,11 @@ static inline u16 incr_checksum(u16 old_check, u16 old, u16 new){
     return htons(~( (u16)(sum >> 16) + (sum & 0xffff) ));
 }
 
-static inline u8 five_tuples_hash(struct flow_id_t *flow_id) {
-    u32 tmp = (flow_id->src_ip * 59) ^ flow_id->dst_ip ^ \
-        ((u32)(flow_id->src_port) << 16) ^ ((u32)(flow_id->dst_port)) ^ \
-        ((u32)(flow_id->protocol));
-    tmp = (tmp >> 24) + ((tmp >> 16) & 0xff) + ((tmp >> 8) & 0xff) + (tmp & 0xff);
-    tmp = ((tmp >> 8) & 0xff) + (tmp & 0xff);
-    return (u8) (((tmp >> 8) & 0xff) + (tmp & 0xff));
-
+static inline u8 src_hash(u32 src_ip, u16 src_port) {
+    u8 res = (src_ip >> 24) ^ ((src_ip >> 16) & 0xff) ^ \
+        ((src_ip >> 8) & 0xff) ^ (src_ip & 0xff) ^ \
+        ((src_port >> 8) & 0xff) ^ (src_port & 0xff);
+    return res;
 }
 
 BPF_TABLE("hash", u32, u64, tb_ip_mac, 1024);
@@ -94,15 +91,7 @@ int lb(struct xdp_md *ctx) {
     if (ntohl(ip->daddr) == LOCAL_IP) {
         /* to server. get new sever address and reclacing dst ip */
 
-        struct flow_id_t flow_id = {};
-        flow_id.src_ip = ntohl(ip->saddr);
-        flow_id.dst_ip = ntohl(ip->daddr);
-        flow_id.src_port = ntohs(tcp->source);
-        flow_id.dst_port = ntohs(tcp->dest);
-        flow_id.protocol = ip->protocol;
-
-        int new_server_idx = five_tuples_hash(&flow_id);
-        u32 new_server_ip;
+        int new_server_idx = src_hash(ip->saddr, tcp->source);
         u32 *new_server_ip_p = tb_server_ips.lookup(&new_server_idx);
         if(!new_server_ip_p)
             return XDP_PASS;
@@ -111,7 +100,7 @@ int lb(struct xdp_md *ctx) {
         ip->daddr = htonl(*new_server_ip_p);
         ip_sub_new = ntohs(ip->daddr >> 16);
 
-        bpf_trace_printk("id: %u, server ip: %u\n", new_server_idx, *new_server_ip_p);
+        // bpf_trace_printk("id: %u, server ip: %u\n", new_server_idx, *new_server_ip_p);
 
     } else {
         /* to client. replacing src ip */
@@ -143,5 +132,6 @@ int lb(struct xdp_md *ctx) {
     eth->src = htonll(LOCAL_MAC);
     eth->dst = htonll(*dst_mac_p);
 
+    // bpf_trace_printk("forward pkt!\n");
     return XDP_TX;
 }
