@@ -34,25 +34,6 @@ struct flow_id_t {
     u16 dst_port;
 }; __attribute__((packed));
 
-static inline u16 checksum(u16 *buf, int bufsz) {
-    u32 sum = 0;
-
-    while (bufsz > 1) {
-        sum += *buf;
-        buf++;
-        bufsz -= 2;
-    }
-
-    if (bufsz == 1) {
-        sum += *(u8 *)buf;
-    }
-
-    sum = (sum & 0xffff) + (sum >> 16);
-    sum = (sum & 0xffff) + (sum >> 16);
-
-    return ~sum;
-}
-
 // see: https://lkml.org/lkml/2003/9/17/24
 // but fold the sum l two times
 
