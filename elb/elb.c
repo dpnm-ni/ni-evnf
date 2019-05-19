@@ -28,12 +28,44 @@ struct eth_tp {
     u16 type;
 } __attribute__((packed));
 
-struct flow_id_t {
+struct tcp_t {
+  u16 source;
+  u16 dest;
+  u32 seq_num;
+  u32 ack_num;
+#if defined(__BIG_ENDIAN_BITFIELD)
+    u8 offset:4;
+    u8 reserved:4;
+    u8 flag_cwr:1;
+    u8 flag_ece:1;
+    u8 flag_urg:1;
+    u8 flag_ack:1;
+    u8 flag_psh:1;
+    u8 flag_rst:1;
+    u8 flag_syn:1;
+    u8 flag_fin:1;
+#elif defined(__LITTLE_ENDIAN_BITFIELD)
+    u8 reserved:4;
+    u8 offset:4;
+    u8 flag_fin:1;
+    u8 flag_syn:1;
+    u8 flag_rst:1;
+    u8 flag_psh:1;
+    u8 flag_ack:1;
+    u8 flag_urg:1;
+    u8 flag_ece:1;
+    u8 flag_cwr:1;
+#else
+#error  "Please fix <asm/byteorder.h>"
+#endif
+    u16 rcv_wnd;
+    u16 check;
+    u16 urg_ptr;
+} __attribute__((packed));
+
+struct src_flow_id_t {
     u32 src_ip;
-    u32 dst_ip;
     u16 src_port;
-    u16 dst_port;
-    u8 protocol;
 }; __attribute__((packed));
 
 // see: https://lkml.org/lkml/2003/9/17/24
@@ -55,7 +87,10 @@ static inline u8 src_hash(u32 src_ip, u16 src_port) {
     return res;
 }
 
+
+
 BPF_TABLE("hash", u32, u64, tb_ip_mac, 1024);
+BPF_TABLE("hash", struct src_flow_id_t, u32, tb_conntrack, 4096);
 BPF_TABLE("array", int, u32, tb_server_ips, HASHMAP_SIZE);
 // BPF_ARRAY(tb_server_ips, u32, HASHMAP_SIZE);
 BPF_PERF_OUTPUT(events);
@@ -81,7 +116,7 @@ int lb(struct xdp_md *ctx) {
     if (ip->protocol != IPPROTO_TCP)
         return XDP_PASS;
 
-    struct tcphdr *tcp;
+    struct tcp_t *tcp;
     CURSOR_ADVANCE(tcp, cursor, sizeof(*tcp), data_end);
     if(ntohs(tcp->dest) != HTTPTYPE_TCP && ntohs(tcp->source) != HTTPTYPE_TCP)
         return XDP_PASS;
@@ -89,18 +124,33 @@ int lb(struct xdp_md *ctx) {
 
 
     if (ntohl(ip->daddr) == LOCAL_IP) {
-        /* to server. get new sever address and reclacing dst ip */
+        /* to server. get new address and reclacing dst ip */
 
-        int new_server_idx = src_hash(ip->saddr, tcp->source);
-        u32 *new_server_ip_p = tb_server_ips.lookup(&new_server_idx);
-        if(!new_server_ip_p)
-            return XDP_PASS;
+        struct src_flow_id_t src_flow_id = {};
+        src_flow_id.src_ip = ip->saddr;
+        src_flow_id.src_port = tcp->source;
+
+        u32 *new_server_ip_p = tb_conntrack.lookup(&src_flow_id);
+        if (!new_server_ip_p) {
+            int new_server_idx = src_hash(ip->saddr, tcp->source);
+            new_server_ip_p = tb_server_ips.lookup(&new_server_idx);
+            if(!new_server_ip_p)
+                return XDP_PASS;
+
+            tb_conntrack.update(&src_flow_id, new_server_ip_p);
+        }
 
         ip_sub_old = ntohs(ip->daddr >> 16);
         ip->daddr = htonl(*new_server_ip_p);
         ip_sub_new = ntohs(ip->daddr >> 16);
 
         // bpf_trace_printk("id: %u, server ip: %u\n", new_server_idx, *new_server_ip_p);
+
+        if (tcp->flag_fin) {
+            tb_conntrack.delete(&src_flow_id);
+            // bpf_trace_printk("deleted src_flow_id: %u\n", *new_server_ip_p);
+        }
+
 
     } else {
         /* to client. replacing src ip */
@@ -116,8 +166,6 @@ int lb(struct xdp_md *ctx) {
 
     ip->check = incr_checksum(ip->check, ip_sub_old, ip_sub_new);
     tcp->check = incr_checksum(tcp->check, ip_sub_old, ip_sub_new);
-    // ip->check = 0;
-    // ip->check = checksum((u16 *)ip, sizeof(struct iphdr));
 
     /* Forwarding */
 
