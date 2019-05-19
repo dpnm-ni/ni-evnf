@@ -7,13 +7,19 @@ import netifaces as ni
 from bcc import BPF
 from ipaddress import IPv4Address
 from getmac import get_mac_address
+from pysnmp.hlapi import *
 
 
 class ELB(object):
     """docstring for ELB"""
-    def __init__(self, iface):
+    def __init__(self, iface, s_ips_str):
         super(ELB, self).__init__()
         self.iface = iface
+        self.s_ips_str = s_ips_str
+        self.HASHMAP_SIZE = 100
+        self.s_hashmap = [0 for _ in range(0, self.HASHMAP_SIZE)]
+        self.s_weights = [self.HASHMAP_SIZE/len(self.s_ips_str) for _ in range(0, len(self.s_ips_str))]
+        self.s_frees = [0 for _ in range(0, self.HASHMAP_SIZE)]
 
         _local_ip_str = ni.ifaddresses(iface)[ni.AF_INET][0]['addr']
         self.LOCAL_IP = int(IPv4Address(_local_ip_str))
@@ -67,16 +73,76 @@ class ELB(object):
     def poll_events(self):
         self.bpf_lb.kprobe_poll()
 
+    def get_servers_load(self):
+        numServers = len(self.s_ips_str)
+        s_frees = [0 for i in range(0, numServers)]
+        for i in range(0, numServers):
+            errorIndication, errorStatus, errorIndex, varBinds = next(
+                getCmd(SnmpEngine(),
+                    CommunityData('public', mpModel=0),
+                    UdpTransportTarget((self.s_ips_str[i], 161)),
+                    ContextData(),
+                    ObjectType(ObjectIdentity('.1.3.6.1.4.1.2021.10.1.3.1')) ) )
+
+            if errorIndication:
+                print(errorIndication)
+            elif errorStatus:
+                print('%s at %s' % (errorStatus.prettyPrint(),
+                    errorIndex and varBinds[int(errorIndex) - 1][0] or '?'))
+            else:
+                oid, val = varBinds[0]
+                s_frees[i] = 10 - min(10, int(round(10*float(val))))
+        return s_frees
+
+    def cal_s_weights_w_load(self, s_frees):
+        s_weights_w_load = [0 for _ in range(0, len(self.s_weights))]
+        for i in range(0, len(self.s_weights)):
+            s_weights_w_load[i] = self.s_weights[i] * s_frees[i]
+        return s_weights_w_load
+
+    def update_s_hashmap(self, s_weights_w_load):
+        new_s_hashmap = []
+        sum_weight = sum(s_weights_w_load)
+        for i in range(0, len(self.s_ips_str)):
+            num_of_sched = max(1, int(s_weights_w_load[i] * self.HASHMAP_SIZE / sum_weight))
+            new_s_hashmap.extend([i for _ in range(0, num_of_sched)])
+
+        if len(new_s_hashmap) < len(self.s_hashmap):
+            last_server_idx = len(self.s_ips_str) - 1
+            new_s_hashmap.extend([last_server_idx for _ in range(len(new_s_hashmap), len(self.s_hashmap))])
+
+        return new_s_hashmap
 
 if __name__ == "__main__":
     iface = "ens4"
+    s_ips_str = ["192.168.4.8", "192.168.4.19"]
 
-    elb = ELB(iface)
+    elb = ELB(iface, s_ips_str)
+    s_frees = elb.get_servers_load()
+    print "s_frees: ", s_frees
+    s_weights_w_load=elb.cal_s_weights_w_load(s_frees)
+    print "s_weights_w_load: ", s_weights_w_load
+    new_s_hashmap=elb.update_s_hashmap(s_weights_w_load)
+    print "new_s_hashmap: ", new_s_hashmap
+
+    exit()
+
     elb.attach_iface()
     elb.open_events()
 
     print "eBPF prog Loaded"
     sys.stdout.flush()
+
+    # a separated thread to poll event
+    def _event_poll():
+        try:
+            while True:
+                edpi.poll_events()
+        except:
+            pass
+    event_poll = threading.Thread(target=_event_poll)
+    event_poll.daemon = True
+    event_poll.start()
 
     try:
         while 1:
