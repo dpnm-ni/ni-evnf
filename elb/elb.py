@@ -2,6 +2,7 @@
 
 import time
 import sys
+import threading
 import ctypes as ct
 import netifaces as ni
 from bcc import BPF
@@ -16,9 +17,10 @@ class ELB(object):
         super(ELB, self).__init__()
         self.iface = iface
         self.s_ips_str = s_ips_str
-        self.HASHMAP_SIZE = 100
+        self.s_ips = [int(IPv4Address(s_ip_str)) for s_ip_str in s_ips_str]
+        self.HASHMAP_SIZE = 256
         self.s_hashmap = [0 for _ in range(0, self.HASHMAP_SIZE)]
-        self.s_weights = [self.HASHMAP_SIZE/len(self.s_ips_str) for _ in range(0, len(self.s_ips_str))]
+        self.s_weights = [self.HASHMAP_SIZE/len(s_ips_str) for _ in range(0, len(s_ips_str))]
         self.s_frees = [0 for _ in range(0, self.HASHMAP_SIZE)]
 
         _local_ip_str = ni.ifaddresses(iface)[ni.AF_INET][0]['addr']
@@ -30,11 +32,13 @@ class ELB(object):
         self.bpf_lb = BPF(src_file="elb.c", debug=0,
             cflags=["-w",
                     "-D_LOCAL_IP=%s" % self.LOCAL_IP,
+                    "-D_HASHMAP_SIZE=%s" % self.HASHMAP_SIZE,
                     "-D_LOCAL_MAC=%s" % self.LOCAL_MAC])
 
         self.fn_lb = self.bpf_lb.load_func("lb", BPF.XDP)
 
         self.tb_ip_mac = self.bpf_lb.get_table("tb_ip_mac")
+        self.tb_server_ips = self.bpf_lb.get_table("tb_server_ips")
 
     def mac_str_to_int(self, mac_str):
         mac_arr = mac_str.split(':')
@@ -100,32 +104,43 @@ class ELB(object):
             s_weights_w_load[i] = self.s_weights[i] * s_frees[i]
         return s_weights_w_load
 
-    def update_s_hashmap(self, s_weights_w_load):
+    def cal_s_hashmap(self, s_weights_w_load):
         new_s_hashmap = []
         sum_weight = sum(s_weights_w_load)
         for i in range(0, len(self.s_ips_str)):
             num_of_sched = max(1, int(s_weights_w_load[i] * self.HASHMAP_SIZE / sum_weight))
-            new_s_hashmap.extend([i for _ in range(0, num_of_sched)])
+            new_s_hashmap.extend([self.s_ips[i] for _ in range(0, num_of_sched)])
 
         if len(new_s_hashmap) < len(self.s_hashmap):
-            last_server_idx = len(self.s_ips_str) - 1
-            new_s_hashmap.extend([last_server_idx for _ in range(len(new_s_hashmap), len(self.s_hashmap))])
+            new_s_hashmap.extend([self.s_ips[-1] for _ in range(len(new_s_hashmap), len(self.s_hashmap))])
 
         return new_s_hashmap
 
+    def update_s_hashmap(self, new_s_hashmap):
+        for i in range(0, len(new_s_hashmap)):
+            if(new_s_hashmap[i] == self.s_hashmap[i]):
+                continue
+            k = self.tb_server_ips.Key(i)
+            leaf = self.tb_server_ips.Leaf(new_s_hashmap[i])
+            print "update mapping: ", i, ": ", new_s_hashmap[i]
+            self.tb_server_ips[k] = leaf
+        self.new_s_hashmap = new_s_hashmap
+
+
 if __name__ == "__main__":
     iface = "ens4"
-    s_ips_str = ["192.168.4.8", "192.168.4.19"]
+    s_ips_str = [u"192.168.4.8", u"192.168.4.19"]
 
     elb = ELB(iface, s_ips_str)
     s_frees = elb.get_servers_load()
     print "s_frees: ", s_frees
-    s_weights_w_load=elb.cal_s_weights_w_load(s_frees)
+    s_weights_w_load = elb.cal_s_weights_w_load(s_frees)
     print "s_weights_w_load: ", s_weights_w_load
-    new_s_hashmap=elb.update_s_hashmap(s_weights_w_load)
+    new_s_hashmap = elb.cal_s_hashmap(s_weights_w_load)
     print "new_s_hashmap: ", new_s_hashmap
+    elb.update_s_hashmap(new_s_hashmap)
 
-    exit()
+    # exit()
 
     elb.attach_iface()
     elb.open_events()
