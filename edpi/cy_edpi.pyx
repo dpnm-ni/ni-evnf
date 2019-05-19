@@ -91,8 +91,11 @@ class CyEDPI(object):
             event = ct.cast(data, ct.POINTER(Event)).contents
             dst_ip_str = str(IPv4Address(event.dst_ip)) 
             dst_mac_str = get_mac_address(ip=dst_ip_str)
-            self.set_tb_ip_mac(int(event.dst_ip), self.mac_str_to_int(dst_mac_str))
-            print "IP to MAC: ", event.dst_ip, " - ", dst_mac_str
+            if dst_mac_str is not None:
+                self.set_tb_ip_mac(int(event.dst_ip), self.mac_str_to_int(dst_mac_str))
+                print "IP to MAC: ", event.dst_ip, " - ", dst_mac_str
+            else:
+                print "warning: fail to get mac of: ", dst_ip_str
 
         self.bpf_dpi["events"].open_perf_buffer(_process_event, page_cnt=512)
 
