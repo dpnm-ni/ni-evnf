@@ -658,6 +658,20 @@ static struct ndpi_proto packet_processing(struct ndpi_workflow * workflow,
     if (ndpi_flow->check_extra_packets)
       flow->check_extra_packets = 1;
 
+    //---
+    flow_id_t detected_flow = {
+      .flags = 1, // new detected protocol
+      .src_ip = flow->src_ip,
+      .dst_ip = flow->dst_ip,
+      .src_port = flow->src_port,
+      .dst_port = flow->dst_port,
+      .protocol = flow->protocol,
+    };
+
+    pipe_push(pros, &detected_flow, 1);
+    // printf("--- pushed new detected flow to pipe \n");
+    //---
+    
     if(flow->detected_protocol.app_protocol == NDPI_PROTOCOL_UNKNOWN)
 	    flow->detected_protocol = ndpi_detection_giveup(workflow->ndpi_struct,
 							    flow->ndpi_flow);

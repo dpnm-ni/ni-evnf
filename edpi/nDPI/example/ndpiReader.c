@@ -56,6 +56,26 @@
 
 #include "ndpi_util.h"
 
+// ---
+#include "pipe.h"
+
+#include <errno.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+
+#define SOCK_PATH "/tmp/sock_edpi"
+#define PIPE_SIZE 10000
+
+// static int sock, t, len;
+// static struct sockaddr_un remote;
+// static char str[100];
+
+pipe_t* p;
+extern pipe_producer_t* pros;
+extern pipe_consumer_t* cons;
+// ---
+
 /** Client parameters **/
 static char *_pcap_file[MAX_NUM_READER_THREADS]; /**< Ingress pcap file/interfaces */
 static FILE *playlist_fp[MAX_NUM_READER_THREADS] = { NULL }; /**< Ingress playlist */
@@ -191,7 +211,7 @@ struct reader_thread {
 };
 
 // array for every thread created for a flow
-static struct reader_thread ndpi_thread_info[MAX_NUM_READER_THREADS];
+static struct reader_thread ndpi_thread_info[MAX_NUM_READER_THREADS + 1];
 
 // ID tracking
 typedef struct ndpi_id {
@@ -2466,6 +2486,57 @@ void * processing_thread(void *_thread_id) {
   return NULL;
 }
 
+//--
+/*
+@brief send detected flow to remote instance
+*/
+
+void* send_detected_flow_infor() {
+
+  int sock, t, len;
+  struct sockaddr_un remote;
+  char str[100];
+
+  // unix socket to send result to python program
+  if ((sock = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
+    perror("socket");
+    exit(1);
+  }
+  printf("Trying to connect...\n");
+
+  remote.sun_family = AF_UNIX;
+  strcpy(remote.sun_path, SOCK_PATH);
+  len = strlen(remote.sun_path) + sizeof(remote.sun_family);
+  if (connect(sock, (struct sockaddr *)&remote, len) == -1) {
+    perror("connect");
+    exit(1);
+  }
+
+  printf("Connected.\n");
+
+  // strcpy(str, "Hello Tu");
+  // if (send(sock, str, strlen(str), 0) == -1) {
+  //   perror("send");
+  //   exit(1);
+  // }
+
+  // get detected flow infor from pipe and send it
+  flow_id_t detected_flow_recv;
+  while (pipe_pop(cons, &detected_flow_recv, 1)) {
+    if (send(sock, &detected_flow_recv, sizeof(flow_id_t), 0) == -1) {
+      perror("send");
+      exit(1);
+    }
+
+    // printf("four tuples: %d %d %d %d %d\n", detected_flow_recv.flags,
+    //   detected_flow_recv.src_ip, detected_flow_recv.dst_ip, 
+    //   detected_flow_recv.src_port, detected_flow_recv.dst_port);
+  }
+
+  pipe_consumer_free(cons);
+
+  close(sock);
+}
 
 /**
  * @brief Begin, process, end detection process
@@ -2509,6 +2580,15 @@ void test_lib() {
       exit(-1);
     }
   }
+
+  // thread_id = num_threads is for send_detected_flow_infor
+  status = pthread_create(&ndpi_thread_info[num_threads].pthread, NULL, send_detected_flow_infor, (void *) thread_id);
+  /* check pthreade_create return value */
+  if(status != 0) {
+    fprintf(stderr, "error on create %ld thread\n", thread_id);
+    exit(-1);
+  }
+
   /* Waiting for completion */
   for(thread_id = 0; thread_id < num_threads; thread_id++) {
     status = pthread_join(ndpi_thread_info[thread_id].pthread, &thd_res);
@@ -2521,6 +2601,21 @@ void test_lib() {
       fprintf(stderr, "error on returned value of %ld joined thread\n", thread_id);
       exit(-1);
     }
+    //---
+    // all detected threads are finished, free the pipe
+    pipe_producer_free(pros);
+    // join socket thread
+    status = pthread_join(ndpi_thread_info[num_threads].pthread, &thd_res);
+    /* check pthreade_join return value */
+    if(status != 0) {
+      fprintf(stderr, "error on join %ld thread\n", thread_id);
+      exit(-1);
+    }
+    if(thd_res != NULL) {
+      fprintf(stderr, "error on returned value of %ld joined thread\n", thread_id);
+      exit(-1);
+    }
+    //---
   }
 
   gettimeofday(&end, NULL);
@@ -3173,6 +3268,15 @@ int main(int argc, char **argv) {
 
     printf("Using nDPI (%s) [%d thread(s)]\n", ndpi_revision(), num_threads);
   }
+
+  //---
+  // create pipe for storing new detected flow
+  p = pipe_new(sizeof(flow_id_t), PIPE_SIZE);
+  pros = pipe_producer_new(p);
+  cons = pipe_consumer_new(p);
+  
+  pipe_free(p);
+  // ---
 
   signal(SIGINT, sigproc);
 
