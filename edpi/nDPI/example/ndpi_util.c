@@ -641,7 +641,24 @@ static struct ndpi_proto packet_processing(struct ndpi_workflow * workflow,
       /* TODO: When half_free is deprecated, get rid of this */
       ndpi_free_flow_info_half(flow);
     }
-    
+
+    //---
+    // printf("proto: %d, extras: %d\n", flow->detected_protocol.app_protocol, flow->check_extra_packets);
+    // if(!flow->check_extra_packets) {
+      if (flow->detected_protocol.app_protocol == 245) { // iperf in protos.txt
+        flow_id_t detected_flow = {
+          .flags = 1, // new detected protocol
+          .src_ip = flow->src_ip,
+          .dst_ip = flow->dst_ip,
+          .src_port = flow->src_port,
+          .dst_port = flow->dst_port,
+          .protocol = flow->protocol,
+        };
+
+        pipe_push(pros, &detected_flow, 1);
+      }
+    // }
+    //---
     return(flow->detected_protocol);
   }
 
@@ -659,17 +676,20 @@ static struct ndpi_proto packet_processing(struct ndpi_workflow * workflow,
       flow->check_extra_packets = 1;
 
     //---
-    flow_id_t detected_flow = {
-      .flags = 1, // new detected protocol
-      .src_ip = flow->src_ip,
-      .dst_ip = flow->dst_ip,
-      .src_port = flow->src_port,
-      .dst_port = flow->dst_port,
-      .protocol = flow->protocol,
-    };
+    // printf("proto: %d\n", flow->detected_protocol.app_protocol);
+    if (flow->detected_protocol.app_protocol == 245) { // iperf in protos.txt
+      flow_id_t detected_flow = {
+        .flags = 1, // new detected protocol
+        .src_ip = flow->src_ip,
+        .dst_ip = flow->dst_ip,
+        .src_port = flow->src_port,
+        .dst_port = flow->dst_port,
+        .protocol = flow->protocol,
+      };
 
-    pipe_push(pros, &detected_flow, 1);
-    // printf("--- pushed new detected flow to pipe \n");
+      pipe_push(pros, &detected_flow, 1);
+      // printf("--- pushed new detected flow to pipe \n");
+    }
     //---
     
     if(flow->detected_protocol.app_protocol == NDPI_PROTOCOL_UNKNOWN)

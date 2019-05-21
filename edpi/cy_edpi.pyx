@@ -112,8 +112,8 @@ class CyEDPI(object):
                     self.d_flow.src_port, self.d_flow.dst_port, self.d_flow.protocol)
                 self.tb_detected_flow[key] = self.DETECTED
 
-                # print "new flow: ", self.d_flow.src_ip, self.d_flow.dst_ip, \
-                #     self.d_flow.src_port, self.d_flow.dst_port
+                print "new flow: ", self.d_flow.src_ip, self.d_flow.dst_ip, \
+                    self.d_flow.src_port, self.d_flow.dst_port
                 # sys.stdout.flush()
 
             # TODO: else: deleted flows
