@@ -30,6 +30,8 @@ class EFw(object):
         self.fn_fw = self.bpf_fw.load_func("fw", BPF.XDP)
 
         self.tb_ip_mac = self.bpf_fw.get_table("tb_ip_mac")
+        self.tb_tcp_dest_lookup = self.bpf_fw.get_table("tb_tcp_dest_lookup")
+        self.tb_subnet_allow = self.bpf_fw.get_table("tb_subnet_allow")
         self.tb_devmap = self.bpf_fw.get_table("tb_devmap")
 
         ip = pyroute2.IPRoute()
@@ -47,6 +49,24 @@ class EFw(object):
         k = self.tb_ip_mac.Key(ip)
         leaf = self.tb_ip_mac.Leaf(mac)
         self.tb_ip_mac[k] = leaf
+
+    def add_port(self, port, mode):
+        k = self.tb_tcp_dest_lookup.Key(port)
+        if mode == "allow":
+            leaf = self.tb_tcp_dest_lookup.Leaf(1)
+        elif mode == "block":
+            leaf = self.tb_tcp_dest_lookup.Leaf(2)
+        else:
+            print "warning: unsupported port mode: ", mode
+            exit(1)
+
+        self.tb_tcp_dest_lookup[k] = leaf
+
+    def add_allow_subnet(self, subnet, val):
+        k = self.tb_subnet_allow.Key(*subnet)
+        leaf = self.tb_subnet_allow.Leaf(val)
+        self.tb_subnet_allow[k] = leaf
+
 
     def attach_iface(self):
         self.bpf_fw.attach_xdp(self.iface, self.fn_fw, 0)
@@ -80,6 +100,11 @@ if __name__ == "__main__":
     efw = EFw(iface)
     efw.attach_iface()
     efw.open_events()
+
+    efw.add_port(80, "allow")
+    efw.add_allow_subnet((24, (192, 168, 4, 0)), 1)
+    # k = efw.tb_subnet_allow.Key(24, (192, 168, 4, 4))
+    # print "val: ", efw.tb_subnet_allow[k]
 
     print "eBPF prog Loaded"
     sys.stdout.flush()

@@ -8,6 +8,9 @@
 
 #define ETHTYPE_IP 0x0800
 
+#define TCP_ALLOW 0x0001
+#define TCP_BLOCK 0x0002
+
 // get from cflags
 // detail: https://stackoverflow.com/questions/25254043/is-it-
 // possible-to-compare-ifdef-values-for-conditional-use
@@ -32,15 +35,25 @@ struct flow_id_t {
     u16 src_port;
     u16 dst_port;
     u16 ip_proto;
-}; __attribute__((packed));
+} __attribute__((packed));
 
-BPF_TABLE("hash",u32, u64, tb_ip_mac, 1024);
-BPF_PERF_OUTPUT(events);
+struct lpm_key_v4_t {
+    u32 prefixlen;
+    u8 data[4];
+}  __attribute__((packed));
+
+BPF_TABLE("hash", u32, u64, tb_ip_mac, 1024);
+BPF_TABLE("array", int, u16, tb_tcp_dest_lookup, 65536);
+BPF_LPM_TRIE(tb_subnet_allow, struct lpm_key_v4_t, u32, 128);
+// BPF_LPM_TRIE(tb_subnet_block, u64, u32, 128);
 BPF_DEVMAP(tb_devmap, 1);
+BPF_PERF_OUTPUT(events);
 
 int fw(struct xdp_md *ctx) {
     void* data_end = (void*)(long)ctx->data_end;
     void* cursor = (void*)(long)ctx->data;
+
+    u64 *dst_mac_p;
 
     /* parsing packet structure */
 
@@ -59,31 +72,53 @@ int fw(struct xdp_md *ctx) {
     if (dst_ip == LOCAL_IP)
         return XDP_PASS;
 
-    /* extract 5 tuples */
+    /* handle tcp */
 
-    struct flow_id_t flow_id = {};
-    flow_id.ip_proto = ip->protocol;
-
-    if (ip->protocol == IPPROTO_UDP) {
-        struct udphdr *udp;
-        CURSOR_ADVANCE(udp, cursor, sizeof(*udp), data_end);
-        flow_id.src_port = udp->source;
-        flow_id.dst_port = udp->dest;
-
-    } else if (ip->protocol == IPPROTO_TCP) {
+    if (ip->protocol == IPPROTO_TCP) {
         struct tcphdr *tcp;
         CURSOR_ADVANCE(tcp, cursor, sizeof(*tcp), data_end);
-        flow_id.src_port = tcp->source;
-        flow_id.dst_port = tcp->dest;
+
+        /* lookup port */
+
+        int tcp_dest = ntohs(tcp->dest);
+        // bpf_trace_printk("get tcp pkt, dst: %u\n", tcp_dest);
+        u16 *tcp_dest_lookup_p = tb_tcp_dest_lookup.lookup(&tcp_dest);
+        if (tcp_dest_lookup_p) {
+            if ((*tcp_dest_lookup_p) & TCP_BLOCK) {
+                // bpf_trace_printk("block port: %u\n", tcp_dest);
+                return XDP_DROP;
+            } else if ((*tcp_dest_lookup_p) & TCP_ALLOW) {
+                // bpf_trace_printk("allow port: %u\n", tcp_dest);
+                goto FORWARD;
+            }
+        }
+
+        /* lookup source subnet */
+        struct lpm_key_v4_t lpm_key_v4 = {};
+        lpm_key_v4.prefixlen = 32;
+        lpm_key_v4.data[0] = (dst_ip >> 24) & 0xff;
+        lpm_key_v4.data[1] = (dst_ip >> 16) & 0xff;
+        lpm_key_v4.data[2] = (dst_ip >> 8) & 0xff;
+        lpm_key_v4.data[3] = dst_ip & 0xff;
+        
+        u32 *lpm_val_v4_p = tb_subnet_allow.lookup(&lpm_key_v4);
+        if(lpm_val_v4_p) {
+            // bpf_trace_printk("allow ip: %u\n", dst_ip);
+            goto FORWARD;
+        }
+
+        // bpf_trace_printk("failed to ip: %u\n", dst_ip);
+        return XDP_PASS;
+
+    } else { // todo: handle UDP
+        return XDP_PASS;
     }
 
-
-
-
+FORWARD:
     /* Forwarding */
 
-    u64 dst_mac = 0;
-    u64 *dst_mac_p = tb_ip_mac.lookup(&dst_ip);
+    // u64 dst_mac = 0;
+    dst_mac_p = tb_ip_mac.lookup(&dst_ip);
     if (!dst_mac_p) {
         events.perf_submit(ctx, &dst_ip, sizeof(dst_ip));
         return XDP_PASS;
