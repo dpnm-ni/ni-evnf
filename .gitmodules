@@ -1,0 +1,3 @@
+[submodule "edpi/nDPI"]
+	path = edpi/nDPI
+	url = https://github.com/ntop/nDPI
