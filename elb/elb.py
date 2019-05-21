@@ -129,7 +129,8 @@ class ELB(object):
 
 if __name__ == "__main__":
     iface = "ens4"
-    s_ips_str = [u"192.168.4.8", u"192.168.4.19"]
+    # s_ips_str = [u"192.168.4.10", u"192.168.4.16", u"192.168.4.8"]
+    s_ips_str = [u"192.168.4.10", u"192.168.4.16"]
 
     elb = ELB(iface, s_ips_str)
     s_frees = elb.get_servers_load()
@@ -160,7 +161,7 @@ if __name__ == "__main__":
     event_poll.start()
 
     try:
-        while 1:
+        while True:
             elb.poll_events()
 
     except KeyboardInterrupt:

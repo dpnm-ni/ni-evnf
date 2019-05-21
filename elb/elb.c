@@ -130,6 +130,7 @@ int lb(struct xdp_md *ctx) {
         src_flow_id.src_ip = ip->saddr;
         src_flow_id.src_port = tcp->source;
 
+        u32 new_server_ip = 0;
         u32 *new_server_ip_p = tb_conntrack.lookup(&src_flow_id);
         if (!new_server_ip_p) {
             int new_server_idx = src_hash(ip->saddr, tcp->source);
@@ -137,7 +138,8 @@ int lb(struct xdp_md *ctx) {
             if(!new_server_ip_p)
                 return XDP_PASS;
 
-            tb_conntrack.update(&src_flow_id, new_server_ip_p);
+            new_server_ip = *new_server_ip_p;
+            tb_conntrack.update(&src_flow_id, &new_server_ip);
         }
 
         ip_sub_old = ntohs(ip->daddr >> 16);
