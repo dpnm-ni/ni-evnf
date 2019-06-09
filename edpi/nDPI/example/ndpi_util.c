@@ -645,7 +645,7 @@ static struct ndpi_proto packet_processing(struct ndpi_workflow * workflow,
     //---
     // printf("proto: %d, extras: %d\n", flow->detected_protocol.app_protocol, flow->check_extra_packets);
     // if(!flow->check_extra_packets) {
-      if (flow->detected_protocol.app_protocol == 245) { // iperf in protos.txt
+      if (flow->detected_protocol.app_protocol >= 245 && flow->detected_protocol.app_protocol <= 248) { // iperf in protos.txt
         flow_id_t detected_flow = {
           .flags = 1, // new detected protocol
           .src_ip = flow->src_ip,
@@ -677,7 +677,7 @@ static struct ndpi_proto packet_processing(struct ndpi_workflow * workflow,
 
     //---
     // printf("proto: %d\n", flow->detected_protocol.app_protocol);
-    if (flow->detected_protocol.app_protocol == 245) { // iperf in protos.txt
+    if (flow->detected_protocol.app_protocol >= 245 && flow->detected_protocol.app_protocol <= 248) { // iperf in protos.txt
       flow_id_t detected_flow = {
         .flags = 1, // new detected protocol
         .src_ip = flow->src_ip,

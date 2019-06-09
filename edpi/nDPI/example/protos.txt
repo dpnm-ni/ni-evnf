@@ -5,7 +5,10 @@ tcp:81,tcp:8181@HTTP
 udp:5061-5062@SIP
 tcp:860,udp:860,tcp:3260,udp:3260@iSCSI
 tcp:3000@ntop
-tcp:5001@iperf
+tcp:5201@iperf1
+tcp:5202@iperf2
+tcp:5203@iperf3
+tcp:5204@iperf4
 
 #  Subprotocols
 #  Format:
