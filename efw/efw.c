@@ -84,11 +84,8 @@ int fw(struct xdp_md *ctx) {
         // bpf_trace_printk("get tcp pkt, dst: %u\n", tcp_dest);
         u16 *tcp_dest_lookup_p = tb_tcp_dest_lookup.lookup(&tcp_dest);
         if (tcp_dest_lookup_p) {
-            if ((*tcp_dest_lookup_p) & TCP_BLOCK) {
+            if ((*tcp_dest_lookup_p) & TCP_ALLOW) {
                 // bpf_trace_printk("block port: %u\n", tcp_dest);
-                return XDP_DROP;
-            } else if ((*tcp_dest_lookup_p) & TCP_ALLOW) {
-                // bpf_trace_printk("allow port: %u\n", tcp_dest);
                 goto FORWARD;
             }
         }
@@ -105,6 +102,13 @@ int fw(struct xdp_md *ctx) {
         if(lpm_val_v4_p) {
             // bpf_trace_printk("allow ip: %u\n", dst_ip);
             goto FORWARD;
+        }
+
+        if (tcp_dest_lookup_p) {
+            if ((*tcp_dest_lookup_p) & TCP_BLOCK) {
+                // bpf_trace_printk("allow port: %u\n", tcp_dest);
+                return XDP_DROP;
+            }
         }
 
         // bpf_trace_printk("failed to ip: %u\n", dst_ip);
