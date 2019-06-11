@@ -27,7 +27,7 @@ class FLowId(ct.Structure):
 
 class CyEDPI(object):
     """docstring for CyEDPI"""
-    def __init__(self, iface):
+    def __init__(self, iface, bpf_src="edpi.c"):
         super(CyEDPI, self).__init__()
         self.iface = iface
 
@@ -37,7 +37,7 @@ class CyEDPI(object):
         _local_mac_str = get_mac_address(interface=iface)
         self.LOCAL_MAC = self.mac_str_to_int(_local_mac_str)
         
-        self.bpf_dpi = BPF(src_file="edpi.c", debug=0,
+        self.bpf_dpi = BPF(src_file=bpf_src, debug=0,
             cflags=["-w",
                     "-D_LOCAL_IP=%s" % self.LOCAL_IP,
                     "-D_LOCAL_MAC=%s" % self.LOCAL_MAC])

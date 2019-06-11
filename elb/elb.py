@@ -14,7 +14,7 @@ from pysnmp.hlapi import *
 
 class ELB(object):
     """docstring for ELB"""
-    def __init__(self, iface, s_ips_str):
+    def __init__(self, iface, s_ips_str, bpf_src="elb.c"):
         super(ELB, self).__init__()
         self.iface = iface
         self.s_ips_str = s_ips_str
@@ -29,7 +29,7 @@ class ELB(object):
         _local_mac_str = get_mac_address(interface=iface)
         self.LOCAL_MAC = self.mac_str_to_int(_local_mac_str)
         
-        self.bpf_lb = BPF(src_file="elb.c", debug=0,
+        self.bpf_lb = BPF(src_file=bpf_src, debug=0,
             cflags=["-w",
                     "-D_LOCAL_IP=%s" % self.LOCAL_IP,
                     "-D_HASHMAP_SIZE=%s" % self.HASHMAP_SIZE,
