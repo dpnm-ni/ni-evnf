@@ -48,6 +48,7 @@ BPF_LPM_TRIE(tb_subnet_allow, struct lpm_key_v4_t, u32, 128);
 // BPF_LPM_TRIE(tb_subnet_block, u64, u32, 128);
 BPF_DEVMAP(tb_devmap, 1);
 BPF_PERF_OUTPUT(events);
+BPF_PROG_ARRAY(tb_prog_array, 1);
 
 int fw(struct xdp_md *ctx) {
     void* data_end = (void*)(long)ctx->data_end;
@@ -120,6 +121,8 @@ int fw(struct xdp_md *ctx) {
 
 FORWARD:
     /* Forwarding */
+
+    tb_prog_array.call(ctx, 0);
 
     // u64 dst_mac = 0;
     dst_mac_p = tb_ip_mac.lookup(&dst_ip);

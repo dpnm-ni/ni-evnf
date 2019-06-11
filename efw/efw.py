@@ -12,7 +12,7 @@ from getmac import get_mac_address
 
 class EFw(object):
     """docstring for EFw"""
-    def __init__(self, iface):
+    def __init__(self, iface, bpf_src="efw.c"):
         super(EFw, self).__init__()
         self.iface = iface
 
@@ -22,7 +22,7 @@ class EFw(object):
         _local_mac_str = get_mac_address(interface=iface)
         self.LOCAL_MAC = self.mac_str_to_int(_local_mac_str)
         
-        self.bpf_fw = BPF(src_file="efw.c", debug=0,
+        self.bpf_fw = BPF(src_file=bpf_src, debug=0,
             cflags=["-w",
                     "-D_LOCAL_IP=%s" % self.LOCAL_IP,
                     "-D_LOCAL_MAC=%s" % self.LOCAL_MAC])
@@ -33,10 +33,18 @@ class EFw(object):
         self.tb_tcp_dest_lookup = self.bpf_fw.get_table("tb_tcp_dest_lookup")
         self.tb_subnet_allow = self.bpf_fw.get_table("tb_subnet_allow")
         self.tb_devmap = self.bpf_fw.get_table("tb_devmap")
+        self.tb_prog_array = self.bpf_fw.get_table("tb_prog_array")
 
         ip = pyroute2.IPRoute()
         idx = ip.link_lookup(ifname=iface)[0]
         self.tb_devmap[ct.c_uint32(0)] = ct.c_int(idx)
+
+    def set_next_vnf(self, fd):
+        self.tb_prog_array[ct.c_int(0)] = ct.c_int(fd)
+
+    def clear_next_vnf(self):
+        del self.tb_prog_array[ct.c_int(0)]
+
 
     def mac_str_to_int(self, mac_str):
         mac_arr = mac_str.split(':')
