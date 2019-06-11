@@ -66,14 +66,10 @@ int fw(struct xdp_md *ctx) {
 
     struct iphdr *ip;
     CURSOR_ADVANCE(ip, cursor, sizeof(*ip), data_end);
-
-    // this VNF in chain, so we might not want to process
-    // traffic that have dst_ip equal to the local ip
     u32 dst_ip = ntohl(ip->daddr);
-    if (dst_ip == LOCAL_IP)
-        return XDP_PASS;
 
     /* handle tcp */
+
 
     if (ip->protocol == IPPROTO_TCP) {
         struct tcphdr *tcp;
@@ -86,7 +82,7 @@ int fw(struct xdp_md *ctx) {
         u16 *tcp_dest_lookup_p = tb_tcp_dest_lookup.lookup(&tcp_dest);
         if (tcp_dest_lookup_p) {
             if ((*tcp_dest_lookup_p) & TCP_ALLOW) {
-                // bpf_trace_printk("block port: %u\n", tcp_dest);
+                // bpf_trace_printk("allow port: %u\n", tcp_dest);
                 goto FORWARD;
             }
         }
@@ -121,9 +117,9 @@ int fw(struct xdp_md *ctx) {
 
 FORWARD:
     /* Forwarding */
-
+    // bpf_trace_printk("fwd pkt!\n");
     tb_prog_array.call(ctx, 0);
-
+    // bpf_trace_printk("failed to call tail call!\n");
     // u64 dst_mac = 0;
     dst_mac_p = tb_ip_mac.lookup(&dst_ip);
     if (!dst_mac_p) {
