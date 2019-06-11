@@ -10,10 +10,10 @@ from ipaddress import IPv4Address
 from getmac import get_mac_address
 
 
-class EFw(object):
-    """docstring for EFw"""
+class EFW(object):
+    """docstring for EFW"""
     def __init__(self, iface, bpf_src="efw.c"):
-        super(EFw, self).__init__()
+        super(EFW, self).__init__()
         self.iface = iface
 
         _local_ip_str = ni.ifaddresses(iface)[ni.AF_INET][0]['addr']
@@ -105,7 +105,7 @@ class EFw(object):
 if __name__ == "__main__":
     iface = "ens4"
 
-    efw = EFw(iface)
+    efw = EFW(iface)
     efw.attach_iface()
     efw.open_events()
 
