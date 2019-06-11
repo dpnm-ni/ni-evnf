@@ -130,7 +130,7 @@ class ELB(object):
 if __name__ == "__main__":
     iface = "ens4"
     # s_ips_str = [u"192.168.4.10", u"192.168.4.16", u"192.168.4.8"]
-    s_ips_str = [u"192.168.4.10", u"192.168.4.16"]
+    s_ips_str = [u"192.168.4.1", u"192.168.4.15"]
 
     elb = ELB(iface, s_ips_str)
     s_frees = elb.get_servers_load()
