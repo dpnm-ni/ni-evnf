@@ -149,16 +149,17 @@ if __name__ == "__main__":
     print "eBPF prog Loaded"
     sys.stdout.flush()
 
-    # a separated thread to poll event
-    def _event_poll():
-        try:
-            while True:
-                edpi.poll_events()
-        except:
-            pass
-    event_poll = threading.Thread(target=_event_poll)
-    event_poll.daemon = True
-    event_poll.start()
+    # a separated thread to recaculate server distribution
+    # based on new server weights
+    # def _event_poll():
+    #     try:
+    #         while True:
+    #             edpi.poll_events()
+    #     except:
+    #         pass
+    # event_poll = threading.Thread(target=_event_poll)
+    # event_poll.daemon = True
+    # event_poll.start()
 
     try:
         while True:
