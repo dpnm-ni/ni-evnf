@@ -3,6 +3,7 @@
 import time
 import sys
 import pyroute2
+import argparse
 import ctypes as ct
 import netifaces as ni
 from bcc import BPF
@@ -103,9 +104,11 @@ class EFW(object):
 
 
 if __name__ == "__main__":
-    iface = "ens4"
+    parser = argparse.ArgumentParser()
+    parser.add_argument("iface", help="iface to listen")
+    args = parser.parse_args()
 
-    efw = EFW(iface)
+    efw = EFW(args.iface)
     efw.attach_iface()
     efw.open_events()
 

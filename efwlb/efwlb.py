@@ -1,15 +1,17 @@
 import sys
 sys.path.append("../")
+import argparse
 
 from efw.efw import EFW
 from elb.elb import ELB
 
+parser = argparse.ArgumentParser()
+parser.add_argument("iface", help="iface to listen")
+parser.add_argument("servers", nargs='+', type=unicode, help="servers to load balance")
+args = parser.parse_args()
 
-iface = "ens4"
-s_ips_str = [u"192.168.4.15", u"192.168.4.1"]
-
-efw = EFW(iface, "../efw/efw.c")
-elb = ELB(iface, s_ips_str, "../elb/elb.c")
+efw = EFW(args.iface, "../efw/efw.c")
+elb = ELB(args.iface, args.servers, "../elb/elb.c")
 
 s_frees = elb.get_servers_load()
 print "s_frees: ", s_frees

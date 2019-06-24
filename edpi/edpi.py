@@ -4,6 +4,7 @@ import time
 import sys
 import socket, os
 import threading
+import argparse
 import ctypes as ct
 import netifaces as ni
 from bcc import BPF
@@ -15,10 +16,13 @@ from cy_edpi import CyEDPI
 
 
 if __name__ == "__main__":
-    iface = "ens4"
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("iface", help="iface to listen")
+    args = parser.parse_args()
 
     # edpi = EDPI(iface)
-    edpi = CyEDPI(iface)
+    edpi = CyEDPI(args.iface)
     edpi.attach_iface()
     edpi.open_events()
 

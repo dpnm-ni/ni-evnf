@@ -4,6 +4,7 @@ import time
 import sys
 import threading
 import random
+import argparse
 import ctypes as ct
 import netifaces as ni
 from bcc import BPF
@@ -128,11 +129,12 @@ class ELB(object):
 
 
 if __name__ == "__main__":
-    iface = "ens4"
-    # s_ips_str = [u"192.168.4.10", u"192.168.4.16", u"192.168.4.8"]
-    s_ips_str = [u"192.168.4.1", u"192.168.4.15"]
+    parser = argparse.ArgumentParser()
+    parser.add_argument("iface", help="iface to listen")
+    parser.add_argument("servers", nargs='+', type=unicode, help="servers to load balance")
+    args = parser.parse_args()
 
-    elb = ELB(iface, s_ips_str)
+    elb = ELB(args.iface, args.servers)
     s_frees = elb.get_servers_load()
     print "s_frees: ", s_frees
     s_weights_w_load = elb.cal_s_weights_w_load(s_frees)
