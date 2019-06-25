@@ -167,8 +167,8 @@ if __name__ == "__main__":
         except Exception as e:
             print(e)
 
-    update_server_map_thread = threading.Thread(target=update_server_map)
-    update_server_map_thread.start()
+    server_map_updater = threading.Thread(target=update_server_map)
+    server_map_updater.start()
 
     try:
         while True:
@@ -180,5 +180,5 @@ if __name__ == "__main__":
     finally:
         elb.detach_iface()
         to_stop.set()
-        update_server_map_thread.join()
+        server_map_updater.join()
         print "Done"
