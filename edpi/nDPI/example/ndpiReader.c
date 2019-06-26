@@ -74,6 +74,7 @@
 pipe_t* p;
 extern pipe_producer_t* pros;
 extern pipe_consumer_t* cons;
+extern elephant_flows_t elephant_flows;
 // ---
 
 /** Client parameters **/
@@ -253,6 +254,8 @@ static void help(u_int long_help) {
 	 "  -f <BPF filter>           | Specify a BPF filter for filtering selected traffic\n"
 	 "  -s <duration>             | Maximum capture duration in seconds (live traffic capture only)\n"
 	 "  -m <duration>             | Split analysis duration in <duration> max seconds\n"
+   "  -e <proto number>         | Protocol number of elephant flow that will be offloaded to XDP.\n"
+   "                            | Can use multiple times for multiple protos.\n"
 	 "  -p <file>.protos          | Specify a protocol file (eg. protos.txt)\n"
 	 "  -l <num loops>            | Number of detection loops (test only)\n"
 	 "  -n <num threads>          | Number of threads. Default: number of interfaces in -i.\n"
@@ -321,6 +324,7 @@ static struct option longopts[] = {
   /* ndpiReader options */
   { "enable-protocol-guess", no_argument, NULL, 'd'},
   { "interface", required_argument, NULL, 'i'},
+  { "elephant-flow", optional_argument, NULL, 'e'},
   { "filter", required_argument, NULL, 'f'},
   { "cpu-bind", required_argument, NULL, 'g'},
   { "loops", required_argument, NULL, 'l'},
@@ -465,12 +469,17 @@ static void parseOptions(int argc, char **argv) {
   if(trace) fprintf(trace, " #### %s #### \n", __FUNCTION__);
 #endif
 
-  while ((opt = getopt_long(argc, argv, "df:g:i:hp:l:s:tv:V:n:j:rp:w:q0123:456:7:89:m:b:x:", longopts, &option_idx)) != EOF) {
+  while ((opt = getopt_long(argc, argv, "df:g:i:e:hp:l:s:tv:V:n:j:rp:w:q0123:456:7:89:m:b:x:", longopts, &option_idx)) != EOF) {
 #ifdef DEBUG_TRACE
     if(trace) fprintf(trace, " #### -%c [%s] #### \n", opt, optarg ? optarg : "");
 #endif
 
     switch (opt) {
+    case 'e':
+      elephant_flows.protos[elephant_flows.size] = atoi(optarg);
+      elephant_flows.size ++;
+      break;
+
     case 'd':
       enable_protocol_guess = 0;
       break;
@@ -3249,6 +3258,7 @@ int main(int argc, char **argv) {
 
   memset(ndpi_thread_info, 0, sizeof(ndpi_thread_info));
 
+  elephant_flows.size = 0;
   parseOptions(argc, argv);
 
   if(bpf_filter_flag) {

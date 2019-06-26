@@ -563,6 +563,14 @@ void process_ndpi_collected_info(struct ndpi_workflow * workflow, struct ndpi_fl
   }
 }
 
+int is_elephant_flow(int app_protocol) {
+  for(int i = 0; i < elephant_flows.size; i++) {
+    if (app_protocol == elephant_flows.protos[i])
+      return 1;
+  }
+  return 0;
+}
+
 /* ****************************************************** */
 
 /**
@@ -645,7 +653,7 @@ static struct ndpi_proto packet_processing(struct ndpi_workflow * workflow,
     //---
     // printf("proto: %d, extras: %d\n", flow->detected_protocol.app_protocol, flow->check_extra_packets);
     // if(!flow->check_extra_packets) {
-      if (flow->detected_protocol.app_protocol >= 245 && flow->detected_protocol.app_protocol <= 248) { // iperf in protos.txt
+      if (is_elephant_flow(flow->detected_protocol.app_protocol)) {
         flow_id_t detected_flow = {
           .flags = 1, // new detected protocol
           .src_ip = flow->src_ip,
@@ -677,7 +685,7 @@ static struct ndpi_proto packet_processing(struct ndpi_workflow * workflow,
 
     //---
     // printf("proto: %d\n", flow->detected_protocol.app_protocol);
-    if (flow->detected_protocol.app_protocol >= 245 && flow->detected_protocol.app_protocol <= 248) { // iperf in protos.txt
+    if (is_elephant_flow(flow->detected_protocol.app_protocol)) {
       flow_id_t detected_flow = {
         .flags = 1, // new detected protocol
         .src_ip = flow->src_ip,
