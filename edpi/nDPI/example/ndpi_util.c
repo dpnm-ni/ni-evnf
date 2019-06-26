@@ -650,23 +650,18 @@ static struct ndpi_proto packet_processing(struct ndpi_workflow * workflow,
       ndpi_free_flow_info_half(flow);
     }
 
-    //---
     // printf("proto: %d, extras: %d\n", flow->detected_protocol.app_protocol, flow->check_extra_packets);
-    // if(!flow->check_extra_packets) {
-      if (is_elephant_flow(flow->detected_protocol.app_protocol)) {
-        flow_id_t detected_flow = {
-          .flags = 1, // new detected protocol
-          .src_ip = flow->src_ip,
-          .dst_ip = flow->dst_ip,
-          .src_port = flow->src_port,
-          .dst_port = flow->dst_port,
-          .protocol = flow->protocol,
-        };
-
-        pipe_push(pros, &detected_flow, 1);
-      }
-    // }
-    //---
+    if (is_elephant_flow(flow->detected_protocol.app_protocol)) {
+      flow_id_t elephant_flow = {
+        .flags = 1, // new detected protocol
+        .src_ip = flow->src_ip,
+        .dst_ip = flow->dst_ip,
+        .src_port = flow->src_port,
+        .dst_port = flow->dst_port,
+        .protocol = flow->protocol,
+      };
+      pipe_push(flow_id_prod, &elephant_flow, 1);
+    }
     return(flow->detected_protocol);
   }
 
@@ -683,10 +678,9 @@ static struct ndpi_proto packet_processing(struct ndpi_workflow * workflow,
     if (ndpi_flow->check_extra_packets)
       flow->check_extra_packets = 1;
 
-    //---
     // printf("proto: %d\n", flow->detected_protocol.app_protocol);
     if (is_elephant_flow(flow->detected_protocol.app_protocol)) {
-      flow_id_t detected_flow = {
+      flow_id_t elephant_flow = {
         .flags = 1, // new detected protocol
         .src_ip = flow->src_ip,
         .dst_ip = flow->dst_ip,
@@ -695,10 +689,8 @@ static struct ndpi_proto packet_processing(struct ndpi_workflow * workflow,
         .protocol = flow->protocol,
       };
 
-      pipe_push(pros, &detected_flow, 1);
-      // printf("--- pushed new detected flow to pipe \n");
+      pipe_push(flow_id_prod, &elephant_flow, 1);
     }
-    //---
     
     if(flow->detected_protocol.app_protocol == NDPI_PROTOCOL_UNKNOWN)
 	    flow->detected_protocol = ndpi_detection_giveup(workflow->ndpi_struct,

@@ -56,8 +56,8 @@
 #define MAX_TABLE_SIZE_2         8192
 #define INIT_VAL                   -1
 
-pipe_producer_t* pros;
-pipe_consumer_t* cons;
+pipe_producer_t* flow_id_prod;
+pipe_consumer_t* flow_id_cons;
 
 typedef struct elephant_flows {
   int protos[255];
@@ -66,7 +66,6 @@ typedef struct elephant_flows {
 
 elephant_flows_t elephant_flows;
 
-//--- flow id with flags to send to edpi
 typedef struct flow_id {
   u_int8_t flags;
   u_int32_t src_ip;

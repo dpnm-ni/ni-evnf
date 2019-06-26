@@ -72,8 +72,8 @@
 // static char str[100];
 
 pipe_t* p;
-extern pipe_producer_t* pros;
-extern pipe_consumer_t* cons;
+extern pipe_producer_t* flow_id_prod;
+extern pipe_consumer_t* flow_id_cons;
 extern elephant_flows_t elephant_flows;
 // ---
 
@@ -2495,7 +2495,6 @@ void * processing_thread(void *_thread_id) {
   return NULL;
 }
 
-//--
 /*
 @brief send detected flow to remote instance
 */
@@ -2531,7 +2530,7 @@ void* send_detected_flow_infor() {
 
   // get detected flow infor from pipe and send it
   flow_id_t detected_flow_recv;
-  while (pipe_pop(cons, &detected_flow_recv, 1)) {
+  while (pipe_pop(flow_id_cons, &detected_flow_recv, 1)) {
     if (send(sock, &detected_flow_recv, sizeof(flow_id_t), 0) == -1) {
       perror("send");
       exit(1);
@@ -2542,7 +2541,7 @@ void* send_detected_flow_infor() {
     //   detected_flow_recv.src_port, detected_flow_recv.dst_port);
   }
 
-  pipe_consumer_free(cons);
+  pipe_consumer_free(flow_id_cons);
 
   close(sock);
 }
@@ -2610,9 +2609,9 @@ void test_lib() {
       fprintf(stderr, "error on returned value of %ld joined thread\n", thread_id);
       exit(-1);
     }
-    //---
+
     // all detected threads are finished, free the pipe
-    pipe_producer_free(pros);
+    pipe_producer_free(flow_id_prod);
     // join socket thread
     status = pthread_join(ndpi_thread_info[num_threads].pthread, &thd_res);
     /* check pthreade_join return value */
@@ -2624,7 +2623,6 @@ void test_lib() {
       fprintf(stderr, "error on returned value of %ld joined thread\n", thread_id);
       exit(-1);
     }
-    //---
   }
 
   gettimeofday(&end, NULL);
@@ -3279,14 +3277,11 @@ int main(int argc, char **argv) {
     printf("Using nDPI (%s) [%d thread(s)]\n", ndpi_revision(), num_threads);
   }
 
-  //---
   // create pipe for storing new detected flow
   p = pipe_new(sizeof(flow_id_t), PIPE_SIZE);
-  pros = pipe_producer_new(p);
-  cons = pipe_consumer_new(p);
-  
+  flow_id_prod = pipe_producer_new(p);
+  flow_id_cons = pipe_consumer_new(p);
   pipe_free(p);
-  // ---
 
   signal(SIGINT, sigproc);
 
