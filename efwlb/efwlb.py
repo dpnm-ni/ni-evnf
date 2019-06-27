@@ -23,7 +23,7 @@ if __name__ == "__main__":
 
 
     efw.add_port(80, "allow")
-    efw.add_allow_subnet((24, (192, 168, 4, 0)), 1)
+    efw.add_allow_subnet((24, (192, 168, 4, 0)))
     # k = efw.tb_subnet_allow.Key(24, (192, 168, 4, 4))
     # print "val: ", efw.tb_subnet_allow[k]
 
