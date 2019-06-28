@@ -55,8 +55,9 @@ class EDPI(object):
             pass
         sock.bind(sock_path)
         sock.listen(1)
+        print "Trying to connect to nDPI engine..."
         conn, addr = sock.accept()
-        print "accept connection..."
+        print "Connected"
         return conn
 
     def mac_str_to_int(self, mac_str):

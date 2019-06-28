@@ -2523,7 +2523,7 @@ void* send_detected_flow_infor() {
     perror("socket");
     exit(1);
   }
-  printf("Trying to connect...\n");
+  printf("Trying to connect to eDPI...\n");
 
   remote.sun_family = AF_UNIX;
   strcpy(remote.sun_path, SOCK_PATH);
@@ -2533,7 +2533,7 @@ void* send_detected_flow_infor() {
     exit(1);
   }
 
-  printf("Connected.\n");
+  printf("Connected\n");
 
   // strcpy(str, "Hello Tu");
   // if (send(sock, str, strlen(str), 0) == -1) {
