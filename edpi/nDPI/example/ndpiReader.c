@@ -1386,6 +1386,19 @@ static void node_idle_scan_walker(const void *node, ndpi_VISIT which, int depth,
 
       /* adding to a queue (we can't delete it from the tree inline ) */
       ndpi_thread_info[thread_id].idle_flows[ndpi_thread_info[thread_id].num_idle_flows++] = flow;
+
+      if (is_elephant_flow(flow->detected_protocol.app_protocol)) {
+        flow_id_t idle_flow = {
+          .flags = 0, // idle flow
+          .src_ip = flow->src_ip,
+          .dst_ip = flow->dst_ip,
+          .src_port = flow->src_port,
+          .dst_port = flow->dst_port,
+          .protocol = flow->protocol,
+        };
+        pipe_push(flow_id_prod, &idle_flow, 1);
+      }
+
     }
   }
 }

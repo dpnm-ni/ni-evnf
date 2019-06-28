@@ -173,6 +173,7 @@ void ndpi_workflow_free(struct ndpi_workflow * workflow);
  */
 void ndpi_free_flow_info_half(struct ndpi_flow_info *flow);
 
+int is_elephant_flow(int app_protocol);
 
 /* Process a packet and update the workflow  */
 struct ndpi_proto ndpi_workflow_process_packet(struct ndpi_workflow * workflow,

@@ -101,14 +101,22 @@ class EDPI(object):
         # cdef CyFlowID d_flow
         if (self.conn.recv_into(self.d_flow)):
             if (self.d_flow.flags == 1):
-
                 key = self.tb_detected_flow.Key(self.d_flow.src_ip, self.d_flow.dst_ip,
                     self.d_flow.src_port, self.d_flow.dst_port, self.d_flow.protocol)
                 self.tb_detected_flow[key] = self.DETECTED
 
-                print "new flow: ", self.d_flow.src_ip, self.d_flow.dst_ip, \
+                print "new elephant flow: ", self.d_flow.src_ip, self.d_flow.dst_ip, \
                     self.d_flow.src_port, self.d_flow.dst_port
-                # sys.stdout.flush()
+
+            elif (self.d_flow.flags == 0):
+                key = self.tb_detected_flow.Key(self.d_flow.src_ip, self.d_flow.dst_ip,
+                    self.d_flow.src_port, self.d_flow.dst_port, self.d_flow.protocol)
+                del self.tb_detected_flow[key]
+
+                print "idle elephant flow: ", self.d_flow.src_ip, self.d_flow.dst_ip, \
+                    self.d_flow.src_port, self.d_flow.dst_port
+            else:
+                 print "warning: unsupported flags: ", self.d_flow.flags
 
             # TODO: else: deleted flows
 
