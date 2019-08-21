@@ -2,4 +2,4 @@ pyroute2
 netifaces
 ipaddress
 pysnmp
-https://github.com/ghostofgoes/getmac/archive/master.tar.gz
+getmac==0.8.1
