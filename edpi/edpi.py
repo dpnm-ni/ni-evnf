@@ -30,7 +30,7 @@ class EDPI(object):
 
         _local_mac_str = get_mac_address(interface=iface)
         self.LOCAL_MAC = self.mac_str_to_int(_local_mac_str)
-        
+
         self.bpf_dpi = BPF(src_file=bpf_src, debug=0,
             cflags=["-w",
                     "-D_LOCAL_IP=%s" % self.LOCAL_IP,
@@ -44,7 +44,7 @@ class EDPI(object):
         self.DETECTED = self.tb_detected_flow.Leaf(1)
         self.d_flow = FLowId()
         self.conn = self.init_unix_sock(self.SOCK_PATH)
-        
+
 
     def init_unix_sock(self, sock_path):
         # unix socket to recv detected flow from nDPI
@@ -84,7 +84,7 @@ class EDPI(object):
                 _fields_ =  [("dst_ip", ct.c_uint32)]
 
             event = ct.cast(data, ct.POINTER(Event)).contents
-            dst_ip_str = str(IPv4Address(event.dst_ip)) 
+            dst_ip_str = str(IPv4Address(event.dst_ip))
             dst_mac_str = get_mac_address(ip=dst_ip_str)
             if dst_mac_str is not None:
                 self.set_tb_ip_mac(int(event.dst_ip), self.mac_str_to_int(dst_mac_str))

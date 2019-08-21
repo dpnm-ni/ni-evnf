@@ -34,26 +34,7 @@ struct flow_id_t {
     u8 ip_proto;
 }; __attribute__((packed));
 
-// static inline u16 checksum(u16 *buf, int bufsz) {
-//     u32 sum = 0;
-
-//     while (bufsz > 1) {
-//         sum += *buf;
-//         buf++;
-//         bufsz -= 2;
-//     }
-
-//     if (bufsz == 1) {
-//         sum += *(u8 *)buf;
-//     }
-
-//     sum = (sum & 0xffff) + (sum >> 16);
-//     sum = (sum & 0xffff) + (sum >> 16);
-
-//     return ~sum;
-// }
-
-BPF_TABLE("hash",u32, u64, tb_ip_mac, 1024);
+BPF_TABLE("hash", u32, u64, tb_ip_mac, 1024);
 BPF_TABLE("hash", struct flow_id_t, u16, tb_detected_flow, 200000);
 BPF_PERF_OUTPUT(events);
 
@@ -63,10 +44,10 @@ int dpi(struct xdp_md *ctx) {
 
      struct eth_tp *eth;
     CURSOR_ADVANCE(eth, cursor, sizeof(*eth), data_end);
-    
+
     if (ntohs(eth->type) != ETHTYPE_IP)
         return XDP_PASS;
-    
+
     struct iphdr *ip;
     CURSOR_ADVANCE(ip, cursor, sizeof(*ip), data_end);
 
@@ -101,8 +82,6 @@ int dpi(struct xdp_md *ctx) {
         flow_id.dst_port = tcp->dest;
     }
 
-    // bpf_trace_printk("recv pkt!\n");
-
     /* let ndpi classify un-detected flows */
     if (!tb_detected_flow.lookup(&flow_id)) {
         // bi-directional flow checking
@@ -123,8 +102,6 @@ int dpi(struct xdp_md *ctx) {
     /* forward detected flow */
     eth->src = htonll(LOCAL_MAC);
     eth->dst = htonll(*dst_mac_p);
-
-    // bpf_trace_printk("forward pkt!\n");
 
     return XDP_TX;
 }

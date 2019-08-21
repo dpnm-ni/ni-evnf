@@ -68,9 +68,10 @@ struct src_flow_id_t {
     u16 src_port;
 }; __attribute__((packed));
 
-// see: https://lkml.org/lkml/2003/9/17/24
-// but fold the sum l two times
-
+/*
+ * see: https://lkml.org/lkml/2003/9/17/24
+ * but fold the sum l two times
+ */
 static inline u16 incr_checksum(u16 old_check, u16 old, u16 new){
     u32 sum;
     old_check = ~ntohs(old_check);
@@ -86,8 +87,6 @@ static inline u8 src_hash(u32 src_ip, u16 src_port) {
         ((src_port >> 8) & 0xff) ^ (src_port & 0xff);
     return res;
 }
-
-
 
 BPF_TABLE("hash", u32, u64, tb_ip_mac, 1024);
 BPF_TABLE("hash", struct src_flow_id_t, u32, tb_conntrack, 4096);
@@ -105,10 +104,10 @@ int lb(struct xdp_md *ctx) {
 
     struct eth_tp *eth;
     CURSOR_ADVANCE(eth, cursor, sizeof(*eth), data_end);
-    
+
     if (ntohs(eth->type) != ETHTYPE_IP)
         return XDP_PASS;
-    
+
     struct iphdr *ip;
     CURSOR_ADVANCE(ip, cursor, sizeof(*ip), data_end);
 
@@ -156,21 +155,17 @@ int lb(struct xdp_md *ctx) {
 
     } else {
         /* to client. replacing src ip */
-
         ip_sub_old = ntohs(ip->saddr >> 16);
         ip->saddr = htonl(LOCAL_IP);
         ip_sub_new = ntohs(ip->saddr >> 16);
     }
 
 
-
     /* recompute checksum */
-
     ip->check = incr_checksum(ip->check, ip_sub_old, ip_sub_new);
     tcp->check = incr_checksum(tcp->check, ip_sub_old, ip_sub_new);
 
     /* Forwarding */
-
     u64 dst_mac = 0;
     u32 dst_ip = ntohl(ip->daddr);
     u64 *dst_mac_p = tb_ip_mac.lookup(&dst_ip);
@@ -182,6 +177,5 @@ int lb(struct xdp_md *ctx) {
     eth->src = htonll(LOCAL_MAC);
     eth->dst = htonll(*dst_mac_p);
 
-    // bpf_trace_printk("forward pkt!\n");
     return XDP_TX;
 }

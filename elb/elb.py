@@ -28,7 +28,7 @@ class ELB(object):
 
         _local_mac_str = get_mac_address(interface=iface)
         self.LOCAL_MAC = self._mac_str_to_int(_local_mac_str)
-        
+
         self.bpf_lb = BPF(src_file=bpf_src, debug=0,
             cflags=["-w",
                     "-D_LOCAL_IP=%s" % self.LOCAL_IP,
@@ -64,7 +64,7 @@ class ELB(object):
                 _fields_ =  [("dst_ip", ct.c_uint32)]
 
             event = ct.cast(data, ct.POINTER(Event)).contents
-            dst_ip_str = str(IPv4Address(event.dst_ip)) 
+            dst_ip_str = str(IPv4Address(event.dst_ip))
             dst_mac_str = get_mac_address(ip=dst_ip_str)
             if dst_mac_str is not None:
                 self.set_tb_ip_mac(int(event.dst_ip), self._mac_str_to_int(dst_mac_str))

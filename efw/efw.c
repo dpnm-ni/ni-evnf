@@ -60,7 +60,7 @@ int fw(struct xdp_md *ctx) {
 
     struct eth_tp *eth;
     CURSOR_ADVANCE(eth, cursor, sizeof(*eth), data_end);
-    
+
     if (ntohs(eth->type) != ETHTYPE_IP)
         return XDP_PASS;
 
@@ -78,11 +78,9 @@ int fw(struct xdp_md *ctx) {
         /* lookup port */
 
         int tcp_dest = ntohs(tcp->dest);
-        // bpf_trace_printk("get tcp pkt, dst: %u\n", tcp_dest);
         u16 *tcp_dest_lookup_p = tb_tcp_dest_lookup.lookup(&tcp_dest);
         if (tcp_dest_lookup_p) {
             if ((*tcp_dest_lookup_p) & TCP_ALLOW) {
-                // bpf_trace_printk("allow port: %u\n", tcp_dest);
                 goto FORWARD;
             }
         }
@@ -94,21 +92,18 @@ int fw(struct xdp_md *ctx) {
         lpm_key_v4.data[1] = (dst_ip >> 16) & 0xff;
         lpm_key_v4.data[2] = (dst_ip >> 8) & 0xff;
         lpm_key_v4.data[3] = dst_ip & 0xff;
-        
+
         u32 *lpm_val_v4_p = tb_subnet_allow.lookup(&lpm_key_v4);
         if(lpm_val_v4_p) {
-            // bpf_trace_printk("allow ip: %u\n", dst_ip);
             goto FORWARD;
         }
 
         if (tcp_dest_lookup_p) {
             if ((*tcp_dest_lookup_p) & TCP_BLOCK) {
-                // bpf_trace_printk("allow port: %u\n", tcp_dest);
                 return XDP_DROP;
             }
         }
 
-        // bpf_trace_printk("failed to ip: %u\n", dst_ip);
         return XDP_PASS;
 
     } else { // todo: handle UDP
@@ -117,10 +112,7 @@ int fw(struct xdp_md *ctx) {
 
 FORWARD:
     /* Forwarding */
-    // bpf_trace_printk("fwd pkt!\n");
     tb_prog_array.call(ctx, 0);
-    // bpf_trace_printk("failed to call tail call!\n");
-    // u64 dst_mac = 0;
     dst_mac_p = tb_ip_mac.lookup(&dst_ip);
     if (!dst_mac_p) {
         events.perf_submit(ctx, &dst_ip, sizeof(dst_ip));
@@ -130,6 +122,5 @@ FORWARD:
     eth->src = htonll(LOCAL_MAC);
     eth->dst = htonll(*dst_mac_p);
 
-    // return tb_devmap.redirect_map(0, 0);
     return XDP_TX;
 }
