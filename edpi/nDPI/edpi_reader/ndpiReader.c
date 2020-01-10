@@ -56,6 +56,27 @@
 
 #include "ndpi_util.h"
 
+// ---
+#include "pipe.h"
+
+#include <errno.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+
+#define SOCK_PATH "/tmp/sock_edpi"
+#define PIPE_SIZE 10000
+
+// static int sock, t, len;
+// static struct sockaddr_un remote;
+// static char str[100];
+
+pipe_t* p;
+extern pipe_producer_t* flow_id_prod;
+extern pipe_consumer_t* flow_id_cons;
+extern elephant_flows_t elephant_flows;
+// ---
+
 /** Client parameters **/
 static char *_pcap_file[MAX_NUM_READER_THREADS]; /**< Ingress pcap file/interfaces */
 static FILE *playlist_fp[MAX_NUM_READER_THREADS] = { NULL }; /**< Ingress playlist */
@@ -191,7 +212,7 @@ struct reader_thread {
 };
 
 // array for every thread created for a flow
-static struct reader_thread ndpi_thread_info[MAX_NUM_READER_THREADS];
+static struct reader_thread ndpi_thread_info[MAX_NUM_READER_THREADS + 1];
 
 // ID tracking
 typedef struct ndpi_id {
@@ -233,6 +254,8 @@ static void help(u_int long_help) {
 	 "  -f <BPF filter>           | Specify a BPF filter for filtering selected traffic\n"
 	 "  -s <duration>             | Maximum capture duration in seconds (live traffic capture only)\n"
 	 "  -m <duration>             | Split analysis duration in <duration> max seconds\n"
+   "  -e <proto number>         | Protocol number of elephant flow that will be offloaded to XDP.\n"
+   "                            | Can use multiple times for multiple protos.\n"
 	 "  -p <file>.protos          | Specify a protocol file (eg. protos.txt)\n"
 	 "  -l <num loops>            | Number of detection loops (test only)\n"
 	 "  -n <num threads>          | Number of threads. Default: number of interfaces in -i.\n"
@@ -301,6 +324,7 @@ static struct option longopts[] = {
   /* ndpiReader options */
   { "enable-protocol-guess", no_argument, NULL, 'd'},
   { "interface", required_argument, NULL, 'i'},
+  { "elephant-flow", optional_argument, NULL, 'e'},
   { "filter", required_argument, NULL, 'f'},
   { "cpu-bind", required_argument, NULL, 'g'},
   { "loops", required_argument, NULL, 'l'},
@@ -445,12 +469,17 @@ static void parseOptions(int argc, char **argv) {
   if(trace) fprintf(trace, " #### %s #### \n", __FUNCTION__);
 #endif
 
-  while ((opt = getopt_long(argc, argv, "df:g:i:hp:l:s:tv:V:n:j:rp:w:q0123:456:7:89:m:b:x:", longopts, &option_idx)) != EOF) {
+  while ((opt = getopt_long(argc, argv, "df:g:i:e:hp:l:s:tv:V:n:j:rp:w:q0123:456:7:89:m:b:x:", longopts, &option_idx)) != EOF) {
 #ifdef DEBUG_TRACE
     if(trace) fprintf(trace, " #### -%c [%s] #### \n", opt, optarg ? optarg : "");
 #endif
 
     switch (opt) {
+    case 'e':
+      elephant_flows.protos[elephant_flows.size] = atoi(optarg);
+      elephant_flows.size ++;
+      break;
+
     case 'd':
       enable_protocol_guess = 0;
       break;
@@ -1357,6 +1386,19 @@ static void node_idle_scan_walker(const void *node, ndpi_VISIT which, int depth,
 
       /* adding to a queue (we can't delete it from the tree inline ) */
       ndpi_thread_info[thread_id].idle_flows[ndpi_thread_info[thread_id].num_idle_flows++] = flow;
+
+      if (is_elephant_flow(flow->detected_protocol.app_protocol)) {
+        flow_id_t idle_flow = {
+          .flags = 0, // idle flow
+          .src_ip = flow->src_ip,
+          .dst_ip = flow->dst_ip,
+          .src_port = flow->src_port,
+          .dst_port = flow->dst_port,
+          .protocol = flow->protocol,
+        };
+        pipe_push(flow_id_prod, &idle_flow, 1);
+      }
+
     }
   }
 }
@@ -2466,6 +2508,56 @@ void * processing_thread(void *_thread_id) {
   return NULL;
 }
 
+/*
+@brief send detected flow to remote instance
+*/
+
+void* send_detected_flow_infor() {
+
+  int sock, t, len;
+  struct sockaddr_un remote;
+  char str[100];
+
+  // unix socket to send result to python program
+  if ((sock = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
+    perror("socket");
+    exit(1);
+  }
+  printf("Trying to connect to eDPI...\n");
+
+  remote.sun_family = AF_UNIX;
+  strcpy(remote.sun_path, SOCK_PATH);
+  len = strlen(remote.sun_path) + sizeof(remote.sun_family);
+  if (connect(sock, (struct sockaddr *)&remote, len) == -1) {
+    perror("connect");
+    exit(1);
+  }
+
+  printf("Connected\n");
+
+  // strcpy(str, "Hello Tu");
+  // if (send(sock, str, strlen(str), 0) == -1) {
+  //   perror("send");
+  //   exit(1);
+  // }
+
+  // get detected flow infor from pipe and send it
+  flow_id_t detected_flow_recv;
+  while (pipe_pop(flow_id_cons, &detected_flow_recv, 1)) {
+    if (send(sock, &detected_flow_recv, sizeof(flow_id_t), 0) == -1) {
+      perror("send");
+      exit(1);
+    }
+
+    // printf("four tuples: %d %d %d %d %d\n", detected_flow_recv.flags,
+    //   detected_flow_recv.src_ip, detected_flow_recv.dst_ip, 
+    //   detected_flow_recv.src_port, detected_flow_recv.dst_port);
+  }
+
+  pipe_consumer_free(flow_id_cons);
+
+  close(sock);
+}
 
 /**
  * @brief Begin, process, end detection process
@@ -2509,9 +2601,32 @@ void test_lib() {
       exit(-1);
     }
   }
+
+  // thread_id = num_threads is for send_detected_flow_infor
+  status = pthread_create(&ndpi_thread_info[num_threads].pthread, NULL, send_detected_flow_infor, (void *) thread_id);
+  /* check pthreade_create return value */
+  if(status != 0) {
+    fprintf(stderr, "error on create %ld thread\n", thread_id);
+    exit(-1);
+  }
+
   /* Waiting for completion */
   for(thread_id = 0; thread_id < num_threads; thread_id++) {
     status = pthread_join(ndpi_thread_info[thread_id].pthread, &thd_res);
+    /* check pthreade_join return value */
+    if(status != 0) {
+      fprintf(stderr, "error on join %ld thread\n", thread_id);
+      exit(-1);
+    }
+    if(thd_res != NULL) {
+      fprintf(stderr, "error on returned value of %ld joined thread\n", thread_id);
+      exit(-1);
+    }
+
+    // all detected threads are finished, free the pipe
+    pipe_producer_free(flow_id_prod);
+    // join socket thread
+    status = pthread_join(ndpi_thread_info[num_threads].pthread, &thd_res);
     /* check pthreade_join return value */
     if(status != 0) {
       fprintf(stderr, "error on join %ld thread\n", thread_id);
@@ -3154,6 +3269,7 @@ int main(int argc, char **argv) {
 
   memset(ndpi_thread_info, 0, sizeof(ndpi_thread_info));
 
+  elephant_flows.size = 0;
   parseOptions(argc, argv);
 
   if(bpf_filter_flag) {
@@ -3173,6 +3289,12 @@ int main(int argc, char **argv) {
 
     printf("Using nDPI (%s) [%d thread(s)]\n", ndpi_revision(), num_threads);
   }
+
+  // create pipe for storing new detected flow
+  p = pipe_new(sizeof(flow_id_t), PIPE_SIZE);
+  flow_id_prod = pipe_producer_new(p);
+  flow_id_cons = pipe_consumer_new(p);
+  pipe_free(p);
 
   signal(SIGINT, sigproc);
 

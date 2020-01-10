@@ -30,6 +30,7 @@
 #define __NDPI_UTIL_H__
 
 #include <pcap.h>
+#include "pipe.h"
 
 #define MAX_NUM_READER_THREADS     16
 #define IDLE_SCAN_PERIOD           10 /* msec (use TICK_RESOLUTION = 1000) */
@@ -54,6 +55,25 @@
 #define MAX_TABLE_SIZE_1         4096
 #define MAX_TABLE_SIZE_2         8192
 #define INIT_VAL                   -1
+
+pipe_producer_t* flow_id_prod;
+pipe_consumer_t* flow_id_cons;
+
+typedef struct elephant_flows {
+  int protos[255];
+  int size;
+} elephant_flows_t;
+
+elephant_flows_t elephant_flows;
+
+typedef struct flow_id {
+  u_int8_t flags;
+  u_int32_t src_ip;
+  u_int32_t dst_ip;
+  u_int16_t src_port;
+  u_int16_t dst_port;
+  u_int8_t protocol;
+} flow_id_t;
 
 // flow tracking
 typedef struct ndpi_flow_info {
@@ -153,6 +173,7 @@ void ndpi_workflow_free(struct ndpi_workflow * workflow);
  */
 void ndpi_free_flow_info_half(struct ndpi_flow_info *flow);
 
+int is_elephant_flow(int app_protocol);
 
 /* Process a packet and update the workflow  */
 struct ndpi_proto ndpi_workflow_process_packet(struct ndpi_workflow * workflow,
