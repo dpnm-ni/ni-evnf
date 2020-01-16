@@ -21,7 +21,7 @@ class FLowId(ct.Structure):
 
 class EDPI(object):
     """docstring for EDPI"""
-    def __init__(self, iface, bpf_src="edpi.c"):
+    def __init__(self, iface, mode, bpf_src="edpi.c"):
         super(EDPI, self).__init__()
         self.iface = iface
 
@@ -34,6 +34,7 @@ class EDPI(object):
         self.bpf_dpi = BPF(src_file=bpf_src, debug=0,
             cflags=["-w",
                     "-D_LOCAL_IP=%s" % self.LOCAL_IP,
+                    "-D_WORKING_MODE=%s" % self.mode,
                     "-D_LOCAL_MAC=%s" % self.LOCAL_MAC])
 
         self.fn_dpi = self.bpf_dpi.load_func("dpi", BPF.XDP)
@@ -125,6 +126,9 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("iface", help="iface to listen")
+    parser.add_argument("-m", "--mode", default=1, type=int, choices=[1, 2],
+            help="working mode. 1 for inline, 2 for capture")
+
     args = parser.parse_args()
 
     edpi = EDPI(args.iface)

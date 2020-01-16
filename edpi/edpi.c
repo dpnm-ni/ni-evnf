@@ -14,6 +14,10 @@
 #define LOCAL_MAC _LOCAL_MAC
 #define LOCAL_IP _LOCAL_IP
 
+#define WORKING_MODE _WORKING_MODE
+#define WORKING_MODE_INLINE 1
+#define WORKING_MODE_CAPTURE 2
+
 #define htonll(_num) (__builtin_bswap64(_num) >> 16)
 
 #define CURSOR_ADVANCE(_target, _cursor, _len,_data_end) \
@@ -99,9 +103,15 @@ int dpi(struct xdp_md *ctx) {
             return XDP_PASS;
     }
 
+
+#if WORKING_MODE == WORKING_MODE_INLINE
     /* forward detected flow */
     eth->src = htonll(LOCAL_MAC);
     eth->dst = htonll(*dst_mac_p);
-
     return XDP_TX;
+
+#else
+    return XDP_DROP;
+
+#endif
 }
