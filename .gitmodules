@@ -1,0 +1,3 @@
+[submodule "edpi/PF_RING"]
+	path = edpi/PF_RING
+	url = https://github.com/ntop/PF_RING
