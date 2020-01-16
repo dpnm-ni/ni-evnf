@@ -23,7 +23,7 @@ if test -d ".git"; then :
      GIT_DATE=`git log -1 --format=%cd`
      #
      # On CentOS 6 `git rev-list HEAD --count` does not work
-     # 
+     #
      #
      GIT_NUM=`git log --pretty=oneline | wc -l | tr -d '[[:space:]]'`
      GIT_RELEASE="${PACKAGE_VERSION}-${GIT_NUM}-${GIT_TAG}"
@@ -37,13 +37,8 @@ AC_DEFINE_UNQUOTED(NDPI_GIT_DATE, "${GIT_DATE}", [Last GIT change])
 
 AC_CHECK_HEADERS([netinet/in.h stdint.h stdlib.h string.h unistd.h])
 
-PCAP_HOME=$HOME/PF_RING/userland
+PCAP_HOME=`pwd`/../PF_RING/userland
 
-if test -d $PCAP_HOME; then :
-     echo -n ""
-else
-     PCAP_HOME=`pwd`/../../PF_RING/userland
-fi
 SHORT_MACHINE=`uname -m | cut -b1-3`
 if test $SHORT_MACHINE = "arm"; then
      LIBNUMA=""
