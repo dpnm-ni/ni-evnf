@@ -39,7 +39,7 @@ cd ${NDPI_HOME}
 if [[ $make_all == false && $only_hook_and_config == false ]]; then
     cd edpi_reader
     make
-    ln -sf ndpiReader ${EDPI_READER_HOME}/ndpiReader
+    ln -sf edpi_reader ${EDPI_READER_HOME}/edpi_reader
     exit 0
 fi
 
@@ -59,4 +59,4 @@ fi
 
 # make all
 make
-ln -sf ${NDPI_HOME}/edpi_reader/ndpiReader ${EDPI_READER_HOME}/ndpiReader
+ln -sf ${NDPI_HOME}/edpi_reader/edpi_reader ${EDPI_READER_HOME}/edpi_reader
