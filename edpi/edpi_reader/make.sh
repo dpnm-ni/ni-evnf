@@ -1,0 +1,62 @@
+#!/bin/bash
+#
+# edpi make script
+#
+
+set -e
+set -x
+
+EDPI_READER_HOME=`pwd`
+NDPI_HOME=`pwd`/../nDPI
+
+make_all=false
+only_hook_and_config=false
+
+while getopts ':ai:' OPTION; do
+    case "$OPTION" in
+        a)
+            make_all=true
+            ;;
+        i)
+            only_hook_and_config=true
+            ;;
+        ?)
+            echo "script usage: $(basename $0) [-a] [-i]"
+            echo "-a: hook, init & make all"
+            echo "-i: hook and config only"
+            echo "default: make edpi only"
+            exit 1
+            ;;
+    esac
+done
+
+# sync edpi_reader source
+cp -r ${EDPI_READER_HOME} ${NDPI_HOME}
+cd ${NDPI_HOME}
+
+
+# make edpi only
+if [[ $make_all == false && $only_hook_and_config == false ]]; then
+    cd edpi_reader
+    make
+    ln -sf ndpiReader ${EDPI_READER_HOME}/ndpiReader
+    exit 0
+fi
+
+# apply the edpi patch
+git reset --hard
+cp ${EDPI_READER_HOME}/edpi_hook.patch ${NDPI_HOME}/edpi_hook.patch
+git apply edpi_hook.patch
+rm edpi_hook.patch
+
+# create build file
+./autogen.sh
+./configure
+
+if [[ ${only_hook_and_config} == true ]]; then
+    exit 0
+fi
+
+# make all
+make
+ln -sf ${NDPI_HOME}/edpi_reader/ndpiReader ${EDPI_READER_HOME}/ndpiReader
