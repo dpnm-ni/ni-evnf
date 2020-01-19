@@ -34,7 +34,7 @@ class EDPI(object):
         self.bpf_dpi = BPF(src_file=bpf_src, debug=0,
             cflags=["-w",
                     "-D_LOCAL_IP=%s" % self.LOCAL_IP,
-                    "-D_WORKING_MODE=%s" % self.mode,
+                    "-D_WORKING_MODE=%s" % mode,
                     "-D_LOCAL_MAC=%s" % self.LOCAL_MAC])
 
         self.fn_dpi = self.bpf_dpi.load_func("dpi", BPF.XDP)
@@ -127,11 +127,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("iface", help="iface to listen")
     parser.add_argument("-m", "--mode", default=1, type=int, choices=[1, 2],
-            help="working mode. 1 for inline, 2 for capture")
+            help="working mode. 1 for inline, 2 for capture. Default is inline")
 
     args = parser.parse_args()
 
-    edpi = EDPI(args.iface)
+    edpi = EDPI(args.iface, args.mode)
     edpi.attach_iface()
     edpi.open_events()
 
