@@ -40,7 +40,7 @@ struct flow_id_t {
 
 BPF_TABLE("hash", u32, u64, tb_ip_mac, 1024);
 BPF_TABLE("hash", struct flow_id_t, u16, tb_detected_flow, 200000);
-BPF_PERF_OUTPUT(events);
+BPF_PERF_OUTPUT(tb_new_ip_events);
 
 int dpi(struct xdp_md *ctx) {
     void* data_end = (void*)(long)ctx->data_end;
@@ -62,7 +62,7 @@ int dpi(struct xdp_md *ctx) {
     u64 dst_mac = 0;
     u64 *dst_mac_p = tb_ip_mac.lookup(&dst_ip);
     if (!dst_mac_p) {
-        events.perf_submit(ctx, &dst_ip, sizeof(dst_ip));
+        tb_new_ip_events.perf_submit(ctx, &dst_ip, sizeof(dst_ip));
         return XDP_PASS;
     }
 
