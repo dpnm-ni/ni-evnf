@@ -28,7 +28,8 @@ def ip_str_to_int(addr):
 
 
 def int_to_ip_str(addr):
-    return socket.inet_ntoa(struct.pack("!I", addr))
+    ip_str = socket.inet_ntoa(struct.pack("!I", addr))
+    return ip_str
 
 
 def mac_str_to_int(mac):
@@ -55,44 +56,24 @@ def detach_iface(bpf_obj, iface):
     bpf_obj.remove_xdp(iface, 0)
 
 
-def new_ip_handler_thread(bpf_obj,
-                          tb_ip_mac=None,
-                          tb_new_ip_events=None):
-
-    if tb_ip_mac is None:
-        tb_ip_mac = bpf_obj.get_table("tb_ip_mac")
-
-    if tb_new_ip_events is None:
-        tb_new_ip_events = bpf_obj.get_table("tb_new_ip_events")
-
+def setup_newip_handler(bpf_obj, tb_ip_mac, tb_new_ip_events):
     def _process_event(ctx, data, size):
         class Event(ct.Structure):
             _fields_ = [("dst_ip", ct.c_uint32)]
 
         event = ct.cast(data, ct.POINTER(Event)).contents
-        dst_ip_str = int_to_ip_str(int(event.dst_ip))
+        dst_ip_str = int_to_ip_str(event.dst_ip)
         dst_mac_str = get_mac_address(ip=dst_ip_str)
 
         if dst_mac_str is not None:
             _set_tb_ip_mac(tb_ip_mac,
                            int(event.dst_ip),
                            mac_str_to_int(dst_mac_str))
-            print "IP to MAC: ", event.dst_ip, " - ", dst_mac_str
+            print "IP to MAC: ", dst_ip_str, " - ", dst_mac_str
         else:
             print "warning: fail to get mac of: ", dst_ip_str
 
-    def _event_poll():
-        try:
-            while True:
-                bpf_obj.kprobe_poll()
-        except:
-            pass
-
     tb_new_ip_events.open_perf_buffer(_process_event, page_cnt=512)
-    event_poll_thread = threading.Thread(target=_event_poll)
-    event_poll_thread.daemon = True
-
-    return event_poll_thread
 
 
 def _set_tb_ip_mac(tb_ip_mac, ip, mac):
