@@ -90,6 +90,9 @@ FORWARD:
     /* go to next XDP progs if exists */
     tb_prog_array.call(ctx, 0);
 
+    if (dst_ip == LOCAL_IP)
+        return XDP_PASS;
+
     dst_mac_p = tb_ip_mac.lookup(&dst_ip);
     if (!dst_mac_p) {
         tb_new_ip_events.perf_submit(ctx, &dst_ip, sizeof(dst_ip));

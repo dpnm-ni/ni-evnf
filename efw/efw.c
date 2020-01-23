@@ -114,6 +114,9 @@ FORWARD:
     /* go to next XDP progs if exists */
     tb_prog_array.call(ctx, 0);
 
+    if (dst_ip == LOCAL_IP)
+        return XDP_PASS;
+
     /* Forwarding */
     dst_mac_p = tb_ip_mac.lookup(&dst_ip);
     if (!dst_mac_p) {
