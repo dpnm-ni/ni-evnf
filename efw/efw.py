@@ -1,39 +1,43 @@
 #!/usr/bin/python
 
+import threading
 import time
 import sys
-import pyroute2
 import argparse
-import ctypes as ct
-import netifaces as ni
+
 from bcc import BPF
-from ipaddress import IPv4Address
-from getmac import get_mac_address
+
+from common import helpers
 
 
 class EFW(object):
     """docstring for EFW"""
+
     def __init__(self, iface, bpf_src="efw.c"):
         super(EFW, self).__init__()
+
         self.iface = iface
+        self.bpf_src = bpf_src
+        self.bpf = self._create_bpf()
 
-        _local_ip_str = ni.ifaddresses(iface)[ni.AF_INET][0]['addr']
-        self.LOCAL_IP = int(IPv4Address(_local_ip_str))
+        self.bpf_fn = self.bpf.load_func("fw", BPF.XDP)
 
-        _local_mac_str = get_mac_address(interface=iface)
-        self.LOCAL_MAC = self.mac_str_to_int(_local_mac_str)
+        self.tb_ip_mac = self.bpf.get_table("tb_ip_mac")
+        self.tb_prog_array = self.bpf.get_table("tb_prog_array")
+        self.tb_new_ip_events = self.bpf.get_table("tb_new_ip_events")
 
-        self.bpf_fw = BPF(src_file=bpf_src, debug=0,
-            cflags=["-w",
-                    "-D_LOCAL_IP=%s" % self.LOCAL_IP,
-                    "-D_LOCAL_MAC=%s" % self.LOCAL_MAC])
+        self.tb_subnet_allow = self.bpf.get_table("tb_subnet_allow")
+        self.tb_tcp_dest_lookup = self.bpf.get_table("tb_tcp_dest_lookup")
 
-        self.fn_fw = self.bpf_fw.load_func("fw", BPF.XDP)
+    def _create_bpf(self):
+        ip_int = helpers.get_ip_int(self.iface)
+        mac_int = helpers.get_mac_int(self.iface)
 
-        self.tb_ip_mac = self.bpf_fw.get_table("tb_ip_mac")
-        self.tb_tcp_dest_lookup = self.bpf_fw.get_table("tb_tcp_dest_lookup")
-        self.tb_subnet_allow = self.bpf_fw.get_table("tb_subnet_allow")
-        self.tb_prog_array = self.bpf_fw.get_table("tb_prog_array")
+        cflags = ["-w",
+                  "-D_LOCAL_IP=%s" % ip_int,
+                  "-D_LOCAL_MAC=%s" % mac_int]
+
+        return BPF(src_file=self.bpf_src, debug=0, cflags=cflags)
 
     def set_next_vnf(self, fd):
         self.tb_prog_array[ct.c_int(0)] = ct.c_int(fd)
@@ -41,18 +45,11 @@ class EFW(object):
     def clear_next_vnf(self):
         del self.tb_prog_array[ct.c_int(0)]
 
+    def attach_iface(self):
+        self.bpf.attach_xdp(self.iface, self.bpf_fn, 0)
 
-    def mac_str_to_int(self, mac_str):
-        mac_arr = mac_str.split(':')
-        tmp =""
-        for i in range(0, 6):
-            tmp += mac_arr[i]
-        return int(tmp, 16)
-
-    def set_tb_ip_mac(self, ip, mac):
-        k = self.tb_ip_mac.Key(ip)
-        leaf = self.tb_ip_mac.Leaf(mac)
-        self.tb_ip_mac[k] = leaf
+    def detach_iface(self):
+        self.bpf.remove_xdp(self.iface, 0)
 
     def add_port(self, port, mode):
         k = self.tb_tcp_dest_lookup.Key(port)
@@ -71,31 +68,22 @@ class EFW(object):
         leaf = self.tb_subnet_allow.Leaf(1)
         self.tb_subnet_allow[k] = leaf
 
+    def start_newip_hander_thread(self):
+        helpers.setup_newip_handler(self.bpf,
+                                    self.tb_ip_mac,
+                                    self.tb_new_ip_events)
 
-    def attach_iface(self):
-        self.bpf_fw.attach_xdp(self.iface, self.fn_fw, 0)
+        event_poll_thread = threading.Thread(target=self._event_poll)
+        event_poll_thread.daemon = True
+        event_poll_thread.start()
 
-    def detach_iface(self):
-        self.bpf_fw.remove_xdp(self.iface, 0)
-
-    def open_events(self):
-        def _process_event(ctx, data, size):
-            class Event(ct.Structure):
-                _fields_ =  [("dst_ip", ct.c_uint32)]
-
-            event = ct.cast(data, ct.POINTER(Event)).contents
-            dst_ip_str = str(IPv4Address(event.dst_ip))
-            dst_mac_str = get_mac_address(ip=dst_ip_str)
-            if dst_mac_str is not None:
-                self.set_tb_ip_mac(int(event.dst_ip), self.mac_str_to_int(dst_mac_str))
-                print "IP to MAC: ", event.dst_ip, " - ", dst_mac_str
-            else:
-                print "warning: fail to get mac of: ", dst_ip_str
-
-        self.bpf_fw["events"].open_perf_buffer(_process_event, page_cnt=512)
-
-    def poll_events(self):
-        self.bpf_fw.kprobe_poll()
+    def _event_poll(self):
+        try:
+            while True:
+                self.bpf.kprobe_poll()
+        except Exception as e:
+            print e
+            pass
 
 
 if __name__ == "__main__":
@@ -105,19 +93,18 @@ if __name__ == "__main__":
 
     efw = EFW(args.iface)
     efw.attach_iface()
-    efw.open_events()
+    efw.start_newip_hander_thread()
 
     efw.add_port(80, "allow")
-    efw.add_allow_subnet((24, (192, 168, 4, 0)))
+    efw.add_allow_subnet((24, (10, 10, 20, 0)))
     # k = efw.tb_subnet_allow.Key(24, (192, 168, 4, 4))
-    # print "val: ", efw.tb_subnet_allow[k]
 
     print "eBPF prog Loaded"
     sys.stdout.flush()
 
     try:
         while 1:
-            efw.poll_events()
+            time.sleep(1)
 
     except KeyboardInterrupt:
         pass

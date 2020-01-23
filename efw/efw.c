@@ -45,7 +45,7 @@ struct lpm_key_v4_t {
 BPF_TABLE("hash", u32, u64, tb_ip_mac, 1024);
 BPF_TABLE("array", int, u16, tb_tcp_dest_lookup, 65536);
 BPF_LPM_TRIE(tb_subnet_allow, struct lpm_key_v4_t, u32, 128);
-BPF_PERF_OUTPUT(events);
+BPF_PERF_OUTPUT(tb_new_ip_events);
 BPF_PROG_ARRAY(tb_prog_array, 1);
 
 int fw(struct xdp_md *ctx) {
@@ -118,7 +118,7 @@ FORWARD:
     /* Forwarding */
     dst_mac_p = tb_ip_mac.lookup(&dst_ip);
     if (!dst_mac_p) {
-        events.perf_submit(ctx, &dst_ip, sizeof(dst_ip));
+        tb_new_ip_events.perf_submit(ctx, &dst_ip, sizeof(dst_ip));
         return XDP_PASS;
     }
 

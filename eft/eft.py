@@ -2,8 +2,6 @@
 
 import threading
 import time
-import struct
-import socket
 import sys
 import argparse
 
