@@ -45,8 +45,6 @@ struct lpm_key_v4_t {
 BPF_TABLE("hash", u32, u64, tb_ip_mac, 1024);
 BPF_TABLE("array", int, u16, tb_tcp_dest_lookup, 65536);
 BPF_LPM_TRIE(tb_subnet_allow, struct lpm_key_v4_t, u32, 128);
-// BPF_LPM_TRIE(tb_subnet_block, u64, u32, 128);
-BPF_DEVMAP(tb_devmap, 1);
 BPF_PERF_OUTPUT(events);
 BPF_PROG_ARRAY(tb_prog_array, 1);
 

@@ -33,12 +33,7 @@ class EFW(object):
         self.tb_ip_mac = self.bpf_fw.get_table("tb_ip_mac")
         self.tb_tcp_dest_lookup = self.bpf_fw.get_table("tb_tcp_dest_lookup")
         self.tb_subnet_allow = self.bpf_fw.get_table("tb_subnet_allow")
-        self.tb_devmap = self.bpf_fw.get_table("tb_devmap")
         self.tb_prog_array = self.bpf_fw.get_table("tb_prog_array")
-
-        ip = pyroute2.IPRoute()
-        idx = ip.link_lookup(ifname=iface)[0]
-        self.tb_devmap[ct.c_uint32(0)] = ct.c_int(idx)
 
     def set_next_vnf(self, fd):
         self.tb_prog_array[ct.c_int(0)] = ct.c_int(fd)
