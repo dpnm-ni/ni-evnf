@@ -12,8 +12,8 @@
 // get from cflags
 // detail: https://stackoverflow.com/questions/25254043/is-it-
 // possible-to-compare-ifdef-values-for-conditional-use
-#define LOCAL_MAC _LOCAL_MAC
-#define LOCAL_IP _LOCAL_IP
+#define NIC_MAC _NIC_MAC
+#define NIC_IP _NIC_IP
 #define HASHMAP_SIZE _HASHMAP_SIZE
 
 #define htonll(_num) (__builtin_bswap64(_num) >> 16)
@@ -122,7 +122,7 @@ int lb(struct xdp_md *ctx) {
 
 
 
-    if (ntohl(ip->daddr) == LOCAL_IP) {
+    if (ntohl(ip->daddr) == NIC_IP) {
         /* to server. get new address and reclacing dst ip */
 
         struct src_flow_id_t src_flow_id = {};
@@ -156,7 +156,7 @@ int lb(struct xdp_md *ctx) {
     } else {
         /* to client. replacing src ip */
         ip_sub_old = ntohs(ip->saddr >> 16);
-        ip->saddr = htonl(LOCAL_IP);
+        ip->saddr = htonl(NIC_IP);
         ip_sub_new = ntohs(ip->saddr >> 16);
     }
 
@@ -174,7 +174,7 @@ int lb(struct xdp_md *ctx) {
         return XDP_PASS;
     }
 
-    eth->src = htonll(LOCAL_MAC);
+    eth->src = htonll(NIC_MAC);
     eth->dst = htonll(*dst_mac_p);
 
     return XDP_TX;

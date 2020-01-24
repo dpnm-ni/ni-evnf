@@ -34,8 +34,8 @@ class EFW(object):
         mac_int = helpers.get_mac_int(self.iface)
 
         cflags = ["-w",
-                  "-D_LOCAL_IP=%s" % ip_int,
-                  "-D_LOCAL_MAC=%s" % mac_int]
+                  "-D_NIC_IP=%s" % ip_int,
+                  "-D_NIC_MAC=%s" % mac_int]
 
         return BPF(src_file=self.bpf_src, debug=0, cflags=cflags)
 

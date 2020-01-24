@@ -12,8 +12,8 @@
 // get from cflags
 // detail: https://stackoverflow.com/questions/25254043/is-it-
 // possible-to-compare-ifdef-values-for-conditional-use
-#define LOCAL_MAC _LOCAL_MAC
-#define LOCAL_IP _LOCAL_IP
+#define NIC_MAC _NIC_MAC
+#define NIC_IP _NIC_IP
 
 #define htonll(_num) (__builtin_bswap64(_num) >> 16)
 
@@ -90,7 +90,7 @@ FORWARD:
     /* go to next XDP progs if exists */
     tb_prog_array.call(ctx, 0);
 
-    if (dst_ip == LOCAL_IP)
+    if (dst_ip == NIC_IP)
         return XDP_PASS;
 
     dst_mac_p = tb_ip_mac.lookup(&dst_ip);
@@ -99,7 +99,7 @@ FORWARD:
         return XDP_PASS;
     }
 
-    eth->src = htonll(LOCAL_MAC);
+    eth->src = htonll(NIC_MAC);
     eth->dst = htonll(*dst_mac_p);
 
     return XDP_TX;

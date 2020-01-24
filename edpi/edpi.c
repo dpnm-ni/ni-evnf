@@ -11,8 +11,8 @@
 // get from cflags
 // detail: https://stackoverflow.com/questions/25254043/is-it-
 // possible-to-compare-ifdef-values-for-conditional-use
-#define LOCAL_MAC _LOCAL_MAC
-#define LOCAL_IP _LOCAL_IP
+#define NIC_MAC _NIC_MAC
+#define NIC_IP _NIC_IP
 
 #define WORKING_MODE _WORKING_MODE
 #define WORKING_MODE_INLINE 1
@@ -56,7 +56,7 @@ int dpi(struct xdp_md *ctx) {
     CURSOR_ADVANCE(ip, cursor, sizeof(*ip), data_end);
 
     u32 dst_ip = ntohl(ip->daddr);
-    if (dst_ip == LOCAL_IP)
+    if (dst_ip == NIC_IP)
         return XDP_PASS;
 
     u64 dst_mac = 0;
@@ -106,7 +106,7 @@ int dpi(struct xdp_md *ctx) {
 
 #if WORKING_MODE == WORKING_MODE_INLINE
     /* forward detected flow */
-    eth->src = htonll(LOCAL_MAC);
+    eth->src = htonll(NIC_MAC);
     eth->dst = htonll(*dst_mac_p);
     return XDP_TX;
 

@@ -24,16 +24,16 @@ class ELB(object):
         self.server_frees = [0 for _ in range(0, self.HASHMAP_SIZE)]
 
         _local_ip_str = ni.ifaddresses(iface)[ni.AF_INET][0]['addr']
-        self.LOCAL_IP = int(IPv4Address(_local_ip_str))
+        self.NIC_IP = int(IPv4Address(_local_ip_str))
 
         _local_mac_str = get_mac_address(interface=iface)
-        self.LOCAL_MAC = self._mac_str_to_int(_local_mac_str)
+        self.NIC_MAC = self._mac_str_to_int(_local_mac_str)
 
         self.bpf_lb = BPF(src_file=bpf_src, debug=0,
             cflags=["-w",
-                    "-D_LOCAL_IP=%s" % self.LOCAL_IP,
+                    "-D_NIC_IP=%s" % self.NIC_IP,
                     "-D_HASHMAP_SIZE=%s" % self.HASHMAP_SIZE,
-                    "-D_LOCAL_MAC=%s" % self.LOCAL_MAC])
+                    "-D_NIC_MAC=%s" % self.NIC_MAC])
 
         self.fn_lb = self.bpf_lb.load_func("lb", BPF.XDP)
 
