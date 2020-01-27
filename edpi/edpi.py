@@ -52,8 +52,8 @@ class EDPI(object):
         cflags = ["-w",
                   "-D_NIC_IP=%s" % ip_int,
                   "-D_NIC_MAC=%s" % mac_int,
-                  "-D_IS_AF_XDP=%d" % 1 if self.is_af_xdp else 0,
-                  "-D_IS_INLINE=%d" % 1 if self.is_inline else 0]
+                  "-D_IS_AF_XDP=%d" % (1 if self.is_af_xdp is True else 0),
+                  "-D_IS_INLINE=%d" % (1 if self.is_inline is True else 0)]
 
         return BPF(src_file=self.bpf_src, debug=0, cflags=cflags)
 
@@ -138,7 +138,6 @@ if __name__ == "__main__":
                         help="set working mode to inline. Default mode is capture")
 
     args = parser.parse_args()
-
     edpi = EDPI(args.iface, args.is_af_xdp, args.is_inline)
     edpi.attach_iface()
     edpi.start_newip_hander_thread()
