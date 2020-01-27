@@ -24,12 +24,13 @@ class FLowId(ct.Structure):
 class EDPI(object):
     """docstring for EDPI"""
 
-    def __init__(self, iface, mode, bpf_src="edpi.c"):
+    def __init__(self, iface, is_af_xdp, is_inline, bpf_src="edpi.c"):
         super(EDPI, self).__init__()
 
         self.iface = iface
         self.bpf_src = bpf_src
-        self.mode = mode
+        self.is_af_xdp = is_af_xdp
+        self.is_inline = is_inline
         self.bpf = self._create_bpf()
 
         self.fn = self.bpf.load_func("dpi", BPF.XDP)
@@ -42,7 +43,7 @@ class EDPI(object):
         self.SOCK_PATH = "/tmp/sock_edpi"
         self.DETECTED = self.tb_detected_flow.Leaf(1)
         self.d_flow = FLowId()
-        self.conn = self.init_unix_sock(self.SOCK_PATH)
+        # self.conn = self.init_unix_sock(self.SOCK_PATH)
 
     def _create_bpf(self):
         ip_int = helpers.get_ip_int(self.iface)
@@ -50,24 +51,25 @@ class EDPI(object):
 
         cflags = ["-w",
                   "-D_NIC_IP=%s" % ip_int,
-                  "-D_WORKING_MODE=%s" % self.mode,
-                  "-D_NIC_MAC=%s" % mac_int]
+                  "-D_NIC_MAC=%s" % mac_int,
+                  "-D_IS_AF_XDP=%d" % 1 if self.is_af_xdp else 0,
+                  "-D_IS_INLINE=%d" % 1 if self.is_inline else 0]
 
         return BPF(src_file=self.bpf_src, debug=0, cflags=cflags)
 
-    def init_unix_sock(self, sock_path):
+    def init_unix_sock(self):
         # unix socket to recv detected flow from nDPI
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         try:
-            os.remove(sock_path)
+            os.remove(self.SOCK_PATH)
         except OSError:
             pass
-        sock.bind(sock_path)
+        sock.bind(self.SOCK_PATH)
         sock.listen(1)
         print "Trying to connect to nDPI engine..."
         conn, addr = sock.accept()
         print "Connected"
-        return conn
+        self.conn = conn
 
     def attach_iface(self):
         self.bpf.attach_xdp(self.iface, self.fn, 0)
@@ -130,14 +132,17 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("iface", help="iface to listen")
-    parser.add_argument("-m", "--mode", default=1, type=int, choices=[1, 2],
-                        help="working mode. 1 for inline, 2 for capture. Default is inline")
+    parser.add_argument("-a", "--af_xdp", dest='is_af_xdp', default=False, action='store_true',
+                        help="use pf_ring af_xdp")
+    parser.add_argument("-i", "--inline", dest='is_inline', default=False, action='store_true',
+                        help="set working mode to inline. Default mode is capture")
 
     args = parser.parse_args()
 
-    edpi = EDPI(args.iface, args.mode)
+    edpi = EDPI(args.iface, args.is_af_xdp, args.is_inline)
     edpi.attach_iface()
     edpi.start_newip_hander_thread()
+    # edpi.init_unix_sock()
 
     print "eBPF prog Loaded"
     sys.stdout.flush()
@@ -145,11 +150,12 @@ if __name__ == "__main__":
     # listen to ndpi for detected flow
     try:
         while True:
-            edpi.add_detected_flow()
+            # edpi.add_detected_flow()
+            time.sleep(1)
     except KeyboardInterrupt:
         pass
 
     finally:
         edpi.detach_iface()
-        edpi.conn.close()
+        # edpi.conn.close()
         print "Done"

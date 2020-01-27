@@ -13,10 +13,8 @@
 // possible-to-compare-ifdef-values-for-conditional-use
 #define NIC_MAC _NIC_MAC
 #define NIC_IP _NIC_IP
-
-#define WORKING_MODE _WORKING_MODE
-#define WORKING_MODE_INLINE 1
-#define WORKING_MODE_CAPTURE 2
+#define IS_AF_XDP _IS_AF_XDP
+#define IS_INLINE _IS_INLINE
 
 #define htonll(_num) (__builtin_bswap64(_num) >> 16)
 
@@ -40,13 +38,16 @@ struct flow_id_t {
 
 BPF_TABLE("hash", u32, u64, tb_ip_mac, 1024);
 BPF_TABLE("hash", struct flow_id_t, u16, tb_detected_flow, 200000);
+BPF_TABLE("array", int, int, qidconf_map, 64);
+BPF_XSKMAP(xsks_map, 64);
 BPF_PERF_OUTPUT(tb_new_ip_events);
 
 int dpi(struct xdp_md *ctx) {
     void* data_end = (void*)(long)ctx->data_end;
     void* cursor = (void*)(long)ctx->data;
+    int index = ctx->rx_queue_index;
 
-     struct eth_tp *eth;
+    struct eth_tp *eth;
     CURSOR_ADVANCE(eth, cursor, sizeof(*eth), data_end);
 
     if (ntohs(eth->type) != ETHTYPE_IP)
@@ -59,12 +60,14 @@ int dpi(struct xdp_md *ctx) {
     if (dst_ip == NIC_IP)
         return XDP_PASS;
 
+#if IS_INLINE
     u64 dst_mac = 0;
     u64 *dst_mac_p = tb_ip_mac.lookup(&dst_ip);
     if (!dst_mac_p) {
         tb_new_ip_events.perf_submit(ctx, &dst_ip, sizeof(dst_ip));
         return XDP_PASS;
     }
+#endif
 
     /* extract 5 tuples. intentionally use network byte order */
 
@@ -88,30 +91,39 @@ int dpi(struct xdp_md *ctx) {
 
     /* let ndpi classify un-detected flows */
     if (!tb_detected_flow.lookup(&flow_id)) {
-        // bi-directional flow checking
+        /* bi-directional flow checking */
         u32 tmp;
-        // swap port
         tmp = flow_id.src_port;
         flow_id.src_port = flow_id.dst_port;
         flow_id.dst_port = tmp;
-        // swap ip
         tmp = flow_id.src_ip;
         flow_id.src_ip = flow_id.dst_ip;
         flow_id.dst_ip = tmp;
 
+#if IS_AF_XDP
+        /* the default value in xsks_map should populated by AF_XDP kernel code */
+        if (!tb_detected_flow.lookup(&flow_id) && xsks_map.lookup(&index)) {
+                bpf_trace_printk("redirect to idx: %d\n", index);
+                return xsks_map.redirect_map(index, 0);
+            }
+
+            bpf_trace_printk("dropped. idx is: %d\n", index);
+            return XDP_DROP;
+
+#else /* use normal kernel stack */
         if (!tb_detected_flow.lookup(&flow_id))
             return XDP_PASS;
+#endif
+
     }
 
-
-#if WORKING_MODE == WORKING_MODE_INLINE
+#if IS_INLINE
     /* forward detected flow */
     eth->src = htonll(NIC_MAC);
     eth->dst = htonll(*dst_mac_p);
     return XDP_TX;
-
-#else
+#else /* use capture mode */
     return XDP_DROP;
-
 #endif
+
 }
