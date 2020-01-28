@@ -41,11 +41,6 @@ cd ${TOP_DIR}/PF_RING/kernel
 make
 sudo make install
 
-# pf ring usersand libs
-cd ${TOP_DIR}/PF_RING/userland/lib
-./configure && make
-sudo make install
-
 # compile pf ring af xdp
 cd ${TOP_DIR}/PF_RING/userland
 ./configure --enable-xdp
