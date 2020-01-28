@@ -6,7 +6,7 @@
 set -e
 set -x
 
-KERNEL_VERSION=5.1.2
+KERNEL_VERSION=`uname -r | grep -o ^[0-9]*\.[0-9]*\.[0-9]*`
 TOP_DIR=`pwd`
 
 # install necessary packages
@@ -27,8 +27,12 @@ if ! test -f /usr/local/include/bpf/xsk.h; then
 fi
 
 # add bpf share libs
-echo "/usr/lib64" | sudo tee -a /etc/ld.so.conf.d/x86_64-linux-gnu.conf
-echo "/usr/local/lib64" | sudo tee -a /etc/ld.so.conf.d/x86_64-linux-gnu.conf
+LIB_CONF=/etc/ld.so.conf.d/x86_64-linux-gnu.conf
+for DIR in "/usr/lib64" "/usr/local/lib64"; do
+    if ! grep -Fxq "${DIR}" ${LIB_CONF}; then
+        echo ${DIR} | sudo tee -a ${LIB_CONF}
+    fi
+done
 sudo ldconfig
 
 # compile pfring kernel
