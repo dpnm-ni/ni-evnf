@@ -1,6 +1,6 @@
 [submodule "edpi/PF_RING"]
 	path = edpi/PF_RING
-	url = https://github.com/ntop/PF_RING
+	url = https://github.com/tu-nv/PF_RING
 [submodule "edpi/nDPI"]
 	path = edpi/nDPI
 	url = https://github.com/ntop/nDPI
