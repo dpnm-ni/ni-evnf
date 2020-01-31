@@ -155,5 +155,5 @@ if __name__ == "__main__":
 
     finally:
         edpi.detach_iface()
-        # edpi.conn.close()
+        edpi.conn.close()
         print "Done"
