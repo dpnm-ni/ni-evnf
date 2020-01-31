@@ -6,8 +6,9 @@
 set -e
 set -x
 
-EDPI_READER_HOME=`pwd`
-NDPI_HOME=`pwd`/../nDPI
+TOP_DIR=`pwd`
+EDPI_READER_HOME=${TOP_DIR}/edpi_reader
+NDPI_HOME=${TOP_DIR}/nDPI
 
 make_all=false
 only_hook_and_config=false
@@ -30,10 +31,19 @@ while getopts ':ai:' OPTION; do
     esac
 done
 
+# install required packages
+sudo apt-get install -y build-essential \
+                        autogen \
+                        automake \
+                        autoconf \
+                        libtool \
+                        gcc \
+                        libpcap-dev
+
 # sync edpi_reader source
 cp -r ${EDPI_READER_HOME} ${NDPI_HOME}
-cd ${NDPI_HOME}
 
+cd ${NDPI_HOME}
 
 # make edpi only
 if [[ $make_all == false && $only_hook_and_config == false ]]; then

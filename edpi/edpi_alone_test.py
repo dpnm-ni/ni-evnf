@@ -43,6 +43,7 @@ class EDPI(object):
         self.SOCK_PATH = "/tmp/sock_edpi"
         self.DETECTED = self.tb_detected_flow.Leaf(1)
         self.d_flow = FLowId()
+        # self.conn = self.init_unix_sock(self.SOCK_PATH)
 
     def _create_bpf(self):
         ip_int = helpers.get_ip_int(self.iface)
@@ -140,7 +141,7 @@ if __name__ == "__main__":
     edpi = EDPI(args.iface, args.is_af_xdp, args.is_inline)
     edpi.attach_iface()
     edpi.start_newip_hander_thread()
-    edpi.init_unix_sock()
+    # edpi.init_unix_sock()
 
     print "eBPF prog Loaded"
     sys.stdout.flush()
@@ -148,7 +149,7 @@ if __name__ == "__main__":
     # listen to ndpi for detected flow
     try:
         while True:
-            edpi.add_detected_flow()
+            # edpi.add_detected_flow()
             time.sleep(1)
     except KeyboardInterrupt:
         pass

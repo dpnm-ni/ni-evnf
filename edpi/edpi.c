@@ -102,13 +102,9 @@ int dpi(struct xdp_md *ctx) {
 
 #if IS_AF_XDP
         /* the default value in xsks_map should populated by AF_XDP kernel code */
-        if (!tb_detected_flow.lookup(&flow_id) && xsks_map.lookup(&index)) {
-                bpf_trace_printk("redirect to idx: %d\n", index);
-                return xsks_map.redirect_map(index, 0);
-            }
-
-            bpf_trace_printk("dropped. idx is: %d\n", index);
-            return XDP_DROP;
+        if (!tb_detected_flow.lookup(&flow_id) && xsks_map.lookup(&index))
+            return xsks_map.redirect_map(index, 0);
+        return XDP_DROP;
 
 #else /* use normal kernel stack */
         if (!tb_detected_flow.lookup(&flow_id))
