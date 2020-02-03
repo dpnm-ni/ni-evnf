@@ -35,6 +35,7 @@ NUM_QUEUE=$(( ${NUM_VCPUS} * 2 ))
 NIC_CONF="<driver name='vhost' queues='${NUM_QUEUE}'>\n \
           <guest csum='off'/> \n \
           </driver>"
+CPU_CONF="<cpu mode='host-passthrough'>"
 
 TO_REBOOT_VM=false
 
@@ -42,17 +43,24 @@ TO_REBOOT_VM=false
 sudo virsh dumpxml ${VM_NAME} > ${VM_CONF_FILE_TMP}
 if ! grep -Fq "queues='${NUM_QUEUE}'" ${VM_CONF_FILE_TMP}; then
     sed -i "/<mac address=.*\/>$/ a ${NIC_CONF}" ${VM_CONF_FILE_TMP}
-    sudo virsh define ${VM_CONF_FILE_TMP}
     TO_REBOOT_VM=true
 else
-    echo "VM ${VM_NAME} is already configured"
+    echo "VM ${VM_NAME} is already configured for xdp"
 fi
-rm ${VM_CONF_FILE_TMP}
 
+if ! grep -Fq "cpu mode='host-passthrough'" ${VM_CONF_FILE_TMP}; then
+    sed -i "s/<cpu>/<cpu mode='host-passthrough'>/g" ${VM_CONF_FILE_TMP}
+    TO_REBOOT_VM=true
+else
+    echo "VM ${VM_NAME} is already configured for cpu host-passthrough"
+fi
 
 # reboot to take effect
 if ${TO_REBOOT_VM}; then
+    sudo virsh define ${VM_CONF_FILE_TMP}
     sudo virsh shutdown ${VM_NAME}
     sleep 3
     sudo virsh start ${VM_NAME}
 fi
+
+rm ${VM_CONF_FILE_TMP}
