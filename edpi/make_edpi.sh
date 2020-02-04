@@ -70,3 +70,7 @@ fi
 # make all
 make
 ln -sf ${NDPI_HOME}/edpi_reader/edpi_reader ${EDPI_READER_HOME}/edpi_reader
+
+if [[ ${make_all} == true ]]; then
+    ln -sf ${NDPI_HOME}/example/ndpiReader ${EDPI_READER_HOME}/ndpiReader
+fi
