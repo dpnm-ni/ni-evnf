@@ -1,7 +1,7 @@
-Sample and benchmark scripts for pktgen (packet generator)
+Scripts for pktgen (packet generator)
 ==========================================================
-This directory contains some pktgen sample and benchmark scripts, that
-can easily be copied and adjusted for your own use-case.
+This directory contains some pktgen scripts token from kernel v5.5 pktgen
+sample scripts, modified to support time and bandwidth parameters.
 
 General doc is located in kernel: Documentation/networking/pktgen.txt
 
@@ -15,7 +15,7 @@ Common parameters
 The parameters.sh file support easy and consistant parameter parsing
 across the sample scripts.  Usage example is printed on errors::
 
- Usage: ./pktgen_sample01_simple.sh [-vx] -i ethX
+ Usage: ./pktgen.sh [-vx] -i ethX
   -i : ($DEV)       output interface/device (required)
   -s : ($PKT_SIZE)  packet size
   -d : ($DEST_IP)   destination IP. CIDR (e.g. 198.18.0.0/15) is also allowed
@@ -24,10 +24,13 @@ across the sample scripts.  Usage example is printed on errors::
   -t : ($THREADS)   threads to start
   -f : ($F_THREAD)  index of first thread (zero indexed CPU number)
   -c : ($SKB_CLONE) SKB clones send before alloc new SKB
-  -n : ($COUNT)     num messages to send per thread, 0 means indefinitely
   -b : ($BURST)     HW level bursting of SKBs
+  -B : ($BANDWIDTH) (Maximum) bandwidth [Mbps] to send
+  -T : ($TIME)      time [s] to send packets
   -v : ($VERBOSE)   verbose
   -x : ($DEBUG)     debug
+  -6 : ($IP6)       IPv6
+
 
 The global variable being set is also listed.  E.g. the required
 interface/device parameter "-i" sets variable $DEV.

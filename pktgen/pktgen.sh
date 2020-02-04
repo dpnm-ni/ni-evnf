@@ -21,7 +21,7 @@ fi
 [ -z "$CLONE_SKB" ] && CLONE_SKB="0"
 # Example enforce param "-m" for dst_mac
 [ -z "$DST_MAC" ] && usage && err 2 "Must specify -m dst_mac"
-[ -z "$COUNT" ]   && COUNT="100000" # Zero means indefinitely
+
 if [ -n "$DEST_IP" ]; then
     validate_addr${IP6} $DEST_IP
     read -r DST_MIN DST_MAX <<< $(parse_addr${IP6} $DEST_IP)
@@ -32,7 +32,10 @@ if [ -n "$DST_PORT" ]; then
 fi
 
 # Base Config
-DELAY="10000"        # Zero means max speed
+PPS=$(( ${BANDWIDTH} * 10**6 / 8 / ${PKT_SIZE} ))
+DELAY=$(( 10**9 / ${PPS} )) # Zero means max speed
+COUNT=$(( ${TIME} * ${PPS} )) # Zeno mean infinite
+
 
 # Flow variation random source port between min and max
 UDP_SRC_MIN=9
