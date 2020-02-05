@@ -149,7 +149,6 @@ if __name__ == "__main__":
     try:
         while True:
             edpi.add_detected_flow()
-            time.sleep(1)
     except KeyboardInterrupt:
         pass
 
