@@ -31,8 +31,8 @@ if [ -n "$DST_PORT" ]; then
     validate_ports $UDP_DST_MIN $UDP_DST_MAX
 fi
 
-# Base Config
-PPS=$(( ${BANDWIDTH} * 10**6 / 8 / ${PKT_SIZE} ))
+# Base Config, value are per-thread
+PPS=$(( ${BANDWIDTH} * 10**6 / 8 / ${PKT_SIZE} / ${THREADS} ))
 DELAY=$(( 10**9 / ${PPS} )) # Zero means max speed
 COUNT=$(( ${TIME} * ${PPS} )) # Zeno mean infinite
 
@@ -45,43 +45,51 @@ UDP_SRC_MAX=9
 # (especially important if other threads were configured by other scripts)
 pg_ctrl "reset"
 
-# Add remove all other devices and add_device $DEV to thread 0
-thread=0
-pg_thread $thread "rem_device_all"
-pg_thread $thread "add_device" $DEV
+# Threads are specified with parameter -t value in $THREADS
+for ((thread = $F_THREAD; thread <= $L_THREAD; thread++)); do
+    # The device name is extended with @name, using thread number to
+    # make then unique, but any name will do.
+    dev=${DEV}@${thread}
+    pg_thread $thread "rem_device_all"
+    pg_thread $thread "add_device" $dev
 
-# How many packets to send (zero means indefinitely)
-pg_set $DEV "count $COUNT"
+    # Notice config queue to map to cpu (mirrors smp_processor_id())
+    # It is beneficial to map IRQ /proc/irq/*/smp_affinity 1:1 to CPU number
+    pg_set $dev "flag QUEUE_MAP_CPU"
 
-# Reduce alloc cost by sending same SKB many times
-# - this obviously affects the randomness within the packet
-pg_set $DEV "clone_skb $CLONE_SKB"
+    # How many packets to send (zero means indefinitely)
+    pg_set $dev "count $COUNT"
 
-# Set packet size
-pg_set $DEV "pkt_size $PKT_SIZE"
+    # Reduce alloc cost by sending same SKB many times
+    # - this obviously affects the randomness within the packet
+    pg_set $dev "clone_skb $CLONE_SKB"
 
-# Delay between packets (zero means max speed)
-pg_set $DEV "delay $DELAY"
+    # Set packet size
+    pg_set $dev "pkt_size $PKT_SIZE"
 
-# Flag example disabling timestamping
-pg_set $DEV "flag NO_TIMESTAMP"
+    # Delay between packets (zero means max speed)
+    pg_set $dev "delay $DELAY"
 
-# Destination
-pg_set $DEV "dst_mac $DST_MAC"
-pg_set $DEV "dst${IP6}_min $DST_MIN"
-pg_set $DEV "dst${IP6}_max $DST_MAX"
+    # Flag example disabling timestamping
+    pg_set $dev "flag NO_TIMESTAMP"
 
-if [ -n "$DST_PORT" ]; then
-    # Single destination port or random port range
-    pg_set $DEV "flag UDPDST_RND"
-    pg_set $DEV "udp_dst_min $UDP_DST_MIN"
-    pg_set $DEV "udp_dst_max $UDP_DST_MAX"
-fi
+    # Destination
+    pg_set $dev "dst_mac $DST_MAC"
+    pg_set $dev "dst${IP6}_min $DST_MIN"
+    pg_set $dev "dst${IP6}_max $DST_MAX"
 
-# Setup random UDP port src range
-pg_set $DEV "flag UDPSRC_RND"
-pg_set $DEV "udp_src_min $UDP_SRC_MIN"
-pg_set $DEV "udp_src_max $UDP_SRC_MAX"
+    if [ -n "$DST_PORT" ]; then
+        # Single destination port or random port range
+        pg_set $dev "flag UDPDST_RND"
+        pg_set $dev "udp_dst_min $UDP_DST_MIN"
+        pg_set $dev "udp_dst_max $UDP_DST_MAX"
+    fi
+
+    # Setup random UDP port src range
+    pg_set $dev "flag UDPSRC_RND"
+    pg_set $dev "udp_src_min $UDP_SRC_MIN"
+    pg_set $dev "udp_src_max $UDP_SRC_MAX"
+done
 
 # start_run
 echo "Running... ctrl^C to stop" >&2
@@ -89,5 +97,8 @@ pg_ctrl "start"
 echo "Done" >&2
 
 # Print results
-echo "Result device: $DEV"
-cat /proc/net/pktgen/$DEV
+for ((thread = $F_THREAD; thread <= $L_THREAD; thread++)); do
+    dev=${DEV}@${thread}
+    echo "Device: $dev"
+    cat /proc/net/pktgen/$dev | grep -A2 "Result:"
+done
