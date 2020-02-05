@@ -14,6 +14,7 @@
 // possible-to-compare-ifdef-values-for-conditional-use
 #define NIC_MAC _NIC_MAC
 #define NIC_IP _NIC_IP
+#define IS_INLINE _IS_INLINE
 
 #define htonll(_num) (__builtin_bswap64(_num) >> 16)
 
@@ -93,6 +94,7 @@ FORWARD:
     if (dst_ip == NIC_IP)
         return XDP_PASS;
 
+#if IS_INLINE
     dst_mac_p = tb_ip_mac.lookup(&dst_ip);
     if (!dst_mac_p) {
         tb_new_ip_events.perf_submit(ctx, &dst_ip, sizeof(dst_ip));
@@ -103,4 +105,7 @@ FORWARD:
     eth->dst = htonll(*dst_mac_p);
 
     return XDP_TX;
+#else
+    return XDP_DROP;
+#endif
 }

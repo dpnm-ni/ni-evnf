@@ -13,7 +13,7 @@ from common import helpers
 class EFT(object):
     """docstring for EFT"""
 
-    def __init__(self, iface, bpf_src="eft.c"):
+    def __init__(self, iface, is_inline, bpf_src="eft.c"):
         super(EFT, self).__init__()
 
         self.iface = iface
@@ -34,7 +34,8 @@ class EFT(object):
 
         cflags = ["-w",
                   "-D_NIC_IP=%s" % ip_int,
-                  "-D_NIC_MAC=%s" % mac_int]
+                  "-D_NIC_MAC=%s" % mac_int,
+                  "-D_IS_INLINE=%d" % (1 if self.is_inline is True else 0)]
 
         return BPF(src_file=self.bpf_src, debug=0, cflags=cflags)
 
@@ -102,6 +103,8 @@ def parse_cli_args():
                         help="flow timeout in seconds")
     parser.add_argument("-i", "--interval", default=2, type=int,
                         help="update interval in seconds")
+     parser.add_argument("-i", "--inline", dest='is_inline', default=False, action='store_true',
+                        help="set working mode to inline. Default mode is capture")
 
     return parser.parse_args()
 
@@ -109,7 +112,7 @@ def parse_cli_args():
 if __name__ == "__main__":
     args = parse_cli_args()
 
-    eft = EFT(args.iface)
+    eft = EFT(args.iface, args.is_inline)
     eft.attach_iface()
 
     eft.start_newip_hander_thread()
