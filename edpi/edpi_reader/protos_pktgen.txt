@@ -1,0 +1,28 @@
+#  Format:
+#  <tcp|udp>:<port>,<tcp|udp>:<port>,.....@<proto>
+
+tcp:81,tcp:8181@HTTP
+udp:5061-5062@SIP
+tcp:860,udp:860,tcp:3260,udp:3260@iSCSI
+tcp:3000@ntop
+udp:9201@pktgen1
+udp:9202@pktgen2
+udp:9203@pktgen3
+udp:9204@pktgen4
+
+#  Subprotocols
+#  Format:
+#  host:"<value>",host:"<value>",.....@<subproto>
+
+host:"googlesyndication.com"@Google
+host:"venere.com"@Venere
+host:"kataweb.it",host:"repubblica.it"@Repubblica
+host:"ntop"@ntop
+#  IP based Subprotocols
+#  Format:
+#  ip:<value>,ip:<value>,.....@<subproto>
+
+ip:213.75.170.11@CustomProtocol
+
+
+
