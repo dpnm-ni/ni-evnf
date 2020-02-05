@@ -4,6 +4,7 @@ import threading
 import time
 import sys
 import argparse
+import multiprocessing
 
 from bcc import BPF
 
@@ -15,10 +16,13 @@ class EFT(object):
 
     def __init__(self, iface, is_inline, bpf_src="eft.c"):
         super(EFT, self).__init__()
+        self.is_inline = is_inline
 
         self.iface = iface
         self.bpf_src = bpf_src
         self.bpf = self._create_bpf()
+
+        self.cpu_range = range(0, multiprocessing.cpu_count())
 
         self.bpf_fn = self.bpf.load_func("ft", BPF.XDP)
 
@@ -78,14 +82,15 @@ class EFT(object):
             src_ip_str = helpers.int_to_ip_str(flow_id.src_ip)
             dst_ip_str = helpers.int_to_ip_str(flow_id.dst_ip)
 
+            flow_stat_summary = self._sum_flow_stat(flow_stat)
             mess = "%d, %s:%d -> %s:%d \t: %d, %d" % (
                 flow_id.ip_proto,
                 src_ip_str,
                 flow_id.src_port,
                 dst_ip_str,
                 flow_id.dst_port,
-                flow_stat.pkt_cnt,
-                flow_stat.byte_cnt
+                flow_stat_summary[0],
+                flow_stat_summary[1]
             )
 
             message_arr.append(mess)
@@ -94,6 +99,12 @@ class EFT(object):
         message = '\n'.join(mess for mess in message_arr)
         print message
 
+    def _sum_flow_stat(self, flow_stat):
+        pkt_cnt = sum([flow_stat[i].pkt_cnt for i in self.cpu_range])
+        byte_cnt = sum([flow_stat[i].byte_cnt for i in self.cpu_range])
+        return (pkt_cnt, byte_cnt)
+
+
 
 def parse_cli_args():
     parser = argparse.ArgumentParser()
@@ -101,9 +112,9 @@ def parse_cli_args():
     parser.add_argument("iface", help="iface to listen")
     parser.add_argument("-t", "--timeout", default=60, type=int,
                         help="flow timeout in seconds")
-    parser.add_argument("-i", "--interval", default=2, type=int,
+    parser.add_argument("-I", "--interval", default=2, type=int,
                         help="update interval in seconds")
-     parser.add_argument("-i", "--inline", dest='is_inline', default=False, action='store_true',
+    parser.add_argument("-i", "--inline", dest='is_inline', default=False, action='store_true',
                         help="set working mode to inline. Default mode is capture")
 
     return parser.parse_args()
