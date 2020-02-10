@@ -28,19 +28,26 @@ fi
 
 
 VM_CONF_FILE_TMP=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c10).xml
+sudo virsh dumpxml ${VM_NAME} > ${VM_CONF_FILE_TMP}
 
 NUM_VCPUS=$(sudo virsh vcpucount --maximum --live ${VM_NAME})
 NUM_QUEUE=$(( ${NUM_VCPUS} * 2 ))
 
-NIC_CONF="<driver name='vhost' queues='${NUM_QUEUE}'>\n \
-          <guest csum='off'/> \n \
-          </driver>"
+if grep -Fq "interface type='vhostuser'" ${VM_CONF_FILE_TMP}; then
+    NIC_CONF="<driver queues='${NUM_QUEUE}'>\n \
+              <guest csum='off'/> \n \
+              </driver>"
+else
+    NIC_CONF="<driver name='vhost' queues='${NUM_QUEUE}'>\n \
+              <guest csum='off'/> \n \
+              </driver>"
+fi
+
 CPU_CONF="<cpu mode='host-passthrough'>"
 
 TO_REBOOT_VM=false
 
 # add config
-sudo virsh dumpxml ${VM_NAME} > ${VM_CONF_FILE_TMP}
 if ! grep -Fq "queues='${NUM_QUEUE}'" ${VM_CONF_FILE_TMP}; then
     sed -i "/<mac address=.*\/>$/ a ${NIC_CONF}" ${VM_CONF_FILE_TMP}
     TO_REBOOT_VM=true
