@@ -72,7 +72,22 @@ class EFT(object):
             print e
             pass
 
-    def print_stats(self):
+    def start_print_stats_thread(self, interval):
+
+        print_stats_thread = threading.Thread(target=self._print_stats_poll, args=[interval,])
+        print_stats_thread.daemon = True
+        print_stats_thread.start()
+
+    def _print_stats_poll(self, interval):
+        try:
+            while True:
+                time.sleep(interval)
+                self._print_stats()
+        except Exception as e:
+            print e
+            pass
+
+    def _print_stats(self):
         message_arr = []
         message_arr.append("---------------------------------------------------")
         message_arr.append("proto, src_ip:port -> dst_ip:port  : packets, bytes")
@@ -114,6 +129,8 @@ def parse_cli_args():
                         help="flow timeout in seconds")
     parser.add_argument("-I", "--interval", default=2, type=int,
                         help="update interval in seconds")
+    parser.add_argument("-T", "--time", default=0, type=int,
+                        help="total running time in seconds. default set to forever")
     parser.add_argument("-i", "--inline", dest='is_inline', default=False, action='store_true',
                         help="set working mode to inline. Default mode is capture")
 
@@ -127,14 +144,17 @@ if __name__ == "__main__":
     eft.attach_iface()
 
     eft.start_newip_hander_thread()
+    eft.start_print_stats_thread(args.interval)
 
     print "eBPF prog Loaded"
     sys.stdout.flush()
 
     try:
-        while True:
-            time.sleep(args.interval)
-            eft.print_stats()
+        if args.time == 0:
+            while True:
+                time.sleep(1)
+        else:
+            time.sleep(args.time)
 
     except KeyboardInterrupt:
         pass
@@ -142,3 +162,4 @@ if __name__ == "__main__":
     finally:
         eft.detach_iface()
         print "Done"
+
