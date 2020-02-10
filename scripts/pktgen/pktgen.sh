@@ -93,7 +93,7 @@ for ((thread = $F_THREAD; thread <= $L_THREAD; thread++)); do
 done
 
 # start_run
-echo "Running... ctrl^C to stop" >&2
+echo "Running..." >&2
 pg_ctrl "start" &
 sleep "$TIME"
 pg_ctrl "stop"
