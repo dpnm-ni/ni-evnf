@@ -93,7 +93,20 @@ class EDPI(object):
             print e
             pass
 
-    def add_detected_flow(self):
+    def start_add_detected_flow_thread(self):
+        add_detected_flow_thread = threading.Thread(target=self._add_detected_flow_poll)
+        add_detected_flow_thread.daemon = True
+        add_detected_flow_thread.start()
+
+    def _add_detected_flow_poll(self):
+        try:
+            while True:
+                self._add_detected_flow()
+        except Exception as e:
+            print e
+            pass
+
+    def _add_detected_flow(self):
         # install detected flow to table
         if (self.conn.recv_into(self.d_flow)):
             if (self.d_flow.flags == 1):
@@ -133,6 +146,8 @@ if __name__ == "__main__":
     parser.add_argument("iface", help="iface to listen")
     parser.add_argument("-a", "--af_xdp", dest='is_af_xdp', default=False, action='store_true',
                         help="use pf_ring af_xdp")
+    parser.add_argument("-T", "--time", default=0, type=int,
+                        help="total running time in seconds. default set to forever")
     parser.add_argument("-i", "--inline", dest='is_inline', default=False, action='store_true',
                         help="set working mode to inline. Default mode is capture")
 
@@ -141,14 +156,17 @@ if __name__ == "__main__":
     edpi.attach_iface()
     edpi.start_newip_hander_thread()
     edpi.init_unix_sock()
+    edpi.start_add_detected_flow_thread()
 
     print "eBPF prog Loaded"
     sys.stdout.flush()
 
-    # listen to ndpi for detected flow
     try:
-        while True:
-            edpi.add_detected_flow()
+        if args.time == 0:
+            while True:
+                time.sleep(1)
+        else:
+            time.sleep(args.time)
     except KeyboardInterrupt:
         pass
 
