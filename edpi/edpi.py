@@ -155,11 +155,12 @@ if __name__ == "__main__":
     edpi = EDPI(args.iface, args.is_af_xdp, args.is_inline)
     edpi.attach_iface()
     edpi.start_newip_hander_thread()
+    print "eBPF prog Loaded"
+    sys.stdout.flush()
+
     edpi.init_unix_sock()
     edpi.start_add_detected_flow_thread()
 
-    print "eBPF prog Loaded"
-    sys.stdout.flush()
 
     try:
         if args.time == 0:
