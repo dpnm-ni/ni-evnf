@@ -7,7 +7,7 @@ set -e
 set -x
 
 NIC=ens7
-DUMMY_IP=192.168.149.12
+DUMMY_IP=192.168.149.12/24
 NUM_CPUS=$(nproc)
 
 # enable JIT
@@ -16,7 +16,8 @@ sysctl net/core/bpf_jit_enable=1
 # create a dummy IP for NIC (eVNF implementation need that)
 nic_state=$(cat /sys/class/net/${NIC}/operstate)
 if [[ ${nic_state} != "up" ]]; then
-    ifconfig ${NIC} ${DUMMY_IP} netmask 255.255.255.0 up
+    ip link set ${NIC} up
+    ip addr add ${DUMMY_IP} dev ${NIC}
 fi
 
 # stop irqbalance
