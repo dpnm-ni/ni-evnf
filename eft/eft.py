@@ -74,9 +74,13 @@ class EFT(object):
 
     def start_print_stats_thread(self, interval):
 
-        print_stats_thread = threading.Thread(target=self._print_stats_poll, args=[interval,])
+        print_stats_thread = threading.Thread(target=self._print_stats_poll, args=[interval, ])
         print_stats_thread.daemon = True
         print_stats_thread.start()
+
+    def print_stats_final(self):
+        print "\nSUMMARY:"
+        self._print_stats()
 
     def _print_stats_poll(self, interval):
         try:
@@ -120,7 +124,6 @@ class EFT(object):
         return (pkt_cnt, byte_cnt)
 
 
-
 def parse_cli_args():
     parser = argparse.ArgumentParser()
 
@@ -160,6 +163,6 @@ if __name__ == "__main__":
         pass
 
     finally:
+        eft.print_stats_final()
         eft.detach_iface()
         print "Done"
-
