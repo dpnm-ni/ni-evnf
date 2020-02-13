@@ -8,35 +8,45 @@ set -e
 set -x
 
 VNF_SSH_ADDR="ubuntu@10.10.10.10"
-VNF_MAC="fa:16:3e:52:46:1d"
-OUT_NIC="ens4"
-NUM_THREADS=1
-PKT_SIZE=1024
-CLONE_SKB=1000
+VNF_MAC="00:90:27:f5:55:8c"
+OUT_NIC="enp5s0f0"
+NUM_THREADS=16
+PKT_SIZE=64
+# FIXME: CLONE_SKB > 0 somehow does not work well with 82599 in our exp
+CLONE_SKB=0
 MEASUREMENT_TIME=60
 REST_TIME=5
 RESULT_FILE="result_single_vnf.txt"
 DST_PORT="9201-9205"
-VNF_COMMAND="sudo python -m eft.eft ens4 -I 1000 -T $(( ${MEASUREMENT_TIME} + 4 * ${REST_TIME} ))"
+# CIDR for destination IP so that RSS in client can load balance traffic to queues
+DST_IPS='192.168.4.0/30'
 
-# for rate in 50 100 200 500 1000 1500 2000 3000 4000 5000 7000 9000 10000; do
-for rate in 10000; do
-    # start VNF
-    ssh ${VNF_SSH_ADDR} "cd ni-evnf && ${VNF_COMMAND}" &
-    sleep ${REST_TIME}
+TEST_CASE=eft64
 
+case ${TEST_CASE} in
+    eft64)
+        RATES=( 50 100 200 500 1000 1500 2000 3000 4000 5000 7000)
+        ;;
+
+    eft1024)
+        NUM_THREADS=4
+        PKT_SIZE=1024
+        RATES=( 50 100 200 500 1000 1500 2000 3000 4000 5000 7000 9000 10000)
+        ;;
+esac
+
+echo ${TEST_CASE} >  ${RESULT_FILE}
+for rate in ${RATES[@]}; do
     # start pktgen on background job
-    # CIDR for destination IP so that RSS in client can load balance traffic  to queues
     ./pktgen/pktgen.sh -i ${OUT_NIC} \
                         -m ${VNF_MAC} \
-                        -d '192.168.4.0/32' \
+                        -d ${DST_IPS} \
                         -p ${DST_PORT} \
                         -s ${PKT_SIZE} \
                         -c ${CLONE_SKB} \
                         -t ${NUM_THREADS} \
                         -T $(( ${MEASUREMENT_TIME} + 2 * ${REST_TIME} )) \
                         -B ${rate} \
-                        -f 1 \
                         >> result_single_vnf.txt &
 
     # wait a little for traffic and VNF to stable, then start measurement
@@ -45,6 +55,7 @@ for rate in 10000; do
 
     # wait all child proccesses to finish. 2s more to ensure process are cleaned
     wait
+
     sleep 2
 
     # empty line to make result file more readable
