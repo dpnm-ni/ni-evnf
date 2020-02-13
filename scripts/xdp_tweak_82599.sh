@@ -17,11 +17,6 @@ DUMMY_IP=192.168.149.12/24
 
 NUM_CPUS=${#TO_ENABLE_CPUS[@]}
 
-nic_state=$(cat /sys/class/net/${NIC}/operstate)
-if [[ ${nic_state} != "up" ]]; then
-    ip link set ${NIC} up
-fi
-
 # Disable all CPU, except TO_ENABLE_CPUS and cpu 0.
 # CPU 0 is also alway online and cannot modified
 # see: https://www.kernel.org/doc/html/latest/core-api/cpu_hotplug.html
@@ -45,7 +40,7 @@ if [[ ${nic_state} != "up" ]]; then
 fi
 
 # set number of NIC's queue to the number of CPUs + 1
-sudo ethtool -L ${NIC} combined $(( ${NUM_CPUS} * 2))
+sudo ethtool -L ${NIC} combined $(( ${NUM_CPUS}))
 
 # stop irqbalance #to manually assign affinity
 service irqbalance stop
