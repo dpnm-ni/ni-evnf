@@ -34,8 +34,8 @@ fi
 # Base Config, value are per-thread
 PPS=$(( ${BANDWIDTH} * 10**6 / 8 / ${PKT_SIZE} / ${THREADS} ))
 DELAY=$(( 10**9 / ${PPS} )) # Zero means max speed
-# COUNT=$(( ${TIME} * ${PPS} )) # Zeno mean infinite
-COUNT=0
+COUNT=$(( ${TIME} * ${PPS} )) # Zeno mean infinite
+# COUNT=0
 
 
 # Flow variation random source port between min and max
@@ -95,7 +95,7 @@ done
 # start_run
 echo "Running..." >&2
 pg_ctrl "start" &
-sleep "$TIME"
+sleep $(( $TIME + 1 ))
 pg_ctrl "stop"
 echo "Done" >&2
 
