@@ -8,8 +8,10 @@ set -e
 set -x
 
 VNF_SSH_ADDR="ubuntu@10.10.10.10"
-VNF_MAC="00:90:27:f5:55:8c"
+VNF_MAC="00:90:27:f5:58:0c"
 OUT_NIC="enp5s0f0"
+
+# default value
 NUM_THREADS=16
 PKT_SIZE=64
 # FIXME: CLONE_SKB > 0 somehow does not work well with 82599 in our exp
@@ -19,26 +21,27 @@ REST_TIME=5
 RESULT_FILE="result_single_vnf.txt"
 DST_PORT="9201-9205"
 # CIDR for destination IP so that RSS in client can load balance traffic to queues
-DST_IPS='192.168.4.0/30'
+DST_IPS='192.168.4.0/24'
+RATES=( 50 100 200 500 1000 1500 2000 3000 4000 5000 7000 9000 10000)
+
 
 TEST_CASE=eft64
 
 case ${TEST_CASE} in
     eft64)
-        RATES=( 50 100 200 500 1000 1500 2000 3000 4000 5000 7000)
+        RATES=( 50 100 200 500 1000 1500 2000 3000 4000 5000 7000 8000 9000 10000)
         ;;
 
     eft1024)
         NUM_THREADS=4
         PKT_SIZE=1024
-        RATES=( 50 100 200 500 1000 1500 2000 3000 4000 5000 7000 9000 10000)
         ;;
 esac
 
-echo ${TEST_CASE} >  ${RESULT_FILE}
+echo ${TEST_CASE} >>  ${RESULT_FILE}
 for rate in ${RATES[@]}; do
     # start pktgen on background job
-    ./pktgen/pktgen.sh -i ${OUT_NIC} \
+    sudo ./pktgen/pktgen.sh -i ${OUT_NIC} \
                         -m ${VNF_MAC} \
                         -d ${DST_IPS} \
                         -p ${DST_PORT} \
@@ -47,6 +50,7 @@ for rate in ${RATES[@]}; do
                         -t ${NUM_THREADS} \
                         -T $(( ${MEASUREMENT_TIME} + 2 * ${REST_TIME} )) \
                         -B ${rate} \
+                        -f 1\
                         >> result_single_vnf.txt &
 
     # wait a little for traffic and VNF to stable, then start measurement
