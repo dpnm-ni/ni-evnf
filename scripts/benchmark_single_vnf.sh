@@ -25,18 +25,43 @@ DST_IPS='192.168.4.0/24'
 RATES=( 50 100 200 500 1000 1500 2000 3000 4000 5000 7000 9000 10000)
 
 
-TEST_CASE=eft64
+TEST_CASE=edpi256_1cpu
 
 case ${TEST_CASE} in
     eft64)
         RATES=( 50 100 200 500 1000 1500 2000 3000 4000 5000 7000 8000 9000 10000)
         ;;
-
-    eft1024)
+    eft512_1vcpu)
+        PKT_SIZE=512
+        ;;
+    eft256_1vcpu)
+        PKT_SIZE=256
+        ;;
+    eft64_1vcpu)
+        RATES=( 50 100 200 500 1000 1500 2000 3000)
+        ;;
+    eft1024_1vcpu)
         NUM_THREADS=4
         PKT_SIZE=1024
         ;;
+
+    # edpi
+    ndpi256_1cpu)
+        DST_IPS='192.168.6.0/28'
+        PKT_SIZE=256
+        NUM_THREADS=2
+        RATES=( 100 200 500 1000 1500)
+        ;;
+    edpi256_1cpu)
+        DST_IPS='192.168.6.0/28'
+        PKT_SIZE=256
+        NUM_THREADS=2
+        RATES=( 100 200 500 1000 1500 2000 3000 4000 5000 7000 9000)
+        ;;
+
 esac
+
+# RATES=( 1500 2000 3000 )
 
 echo ${TEST_CASE} >>  ${RESULT_FILE}
 for rate in ${RATES[@]}; do
