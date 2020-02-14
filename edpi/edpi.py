@@ -93,20 +93,20 @@ class EDPI(object):
             print e
             pass
 
-    def start_add_detected_flow_thread(self):
-        add_detected_flow_thread = threading.Thread(target=self._add_detected_flow_poll)
+    def start_process_detected_flow_thread(self):
+        add_detected_flow_thread = threading.Thread(target=self._process_detected_flow_poll)
         add_detected_flow_thread.daemon = True
         add_detected_flow_thread.start()
 
-    def _add_detected_flow_poll(self):
+    def _process_detected_flow_poll(self):
         try:
             while True:
-                self._add_detected_flow()
+                self._process_detected_flow()
         except Exception as e:
             print e
             pass
 
-    def _add_detected_flow(self):
+    def _process_detected_flow(self):
         # install detected flow to table
         if (self.conn.recv_into(self.d_flow)):
             if (self.d_flow.flags == 1):
@@ -117,10 +117,10 @@ class EDPI(object):
                                                 self.d_flow.protocol)
                 self.tb_detected_flow[key] = self.DETECTED
 
-                print "new elephant flow: {}:{}->{}:{}".format(self.d_flow.src_ip,
-                                                               self.d_flow.src_port,
-                                                               self.d_flow.dst_ip,
-                                                               self.d_flow.dst_port)
+                # print "new elephant flow: {}:{}->{}:{}".format(self.d_flow.src_ip,
+                #                                                self.d_flow.src_port,
+                #                                                self.d_flow.dst_ip,
+                #                                                self.d_flow.dst_port)
 
             elif (self.d_flow.flags == 0):
                 key = self.tb_detected_flow.Key(self.d_flow.src_ip,
@@ -130,10 +130,10 @@ class EDPI(object):
                                                 self.d_flow.protocol)
                 del self.tb_detected_flow[key]
 
-                print "idle elephant flow: {}:{}->{}:{}".format(self.d_flow.src_ip,
-                                                                self.d_flow.dst_ip,
-                                                                self.d_flow.src_port,
-                                                                self.d_flow.dst_port)
+                # print "idle elephant flow: {}:{}->{}:{}".format(self.d_flow.src_ip,
+                #                                                 self.d_flow.dst_ip,
+                #                                                 self.d_flow.src_port,
+                #                                                 self.d_flow.dst_port)
             else:
                 print "warning: unsupported flags: ", self.d_flow.flags
 
@@ -159,7 +159,7 @@ if __name__ == "__main__":
     sys.stdout.flush()
 
     edpi.init_unix_sock()
-    edpi.start_add_detected_flow_thread()
+    edpi.start_process_detected_flow_thread()
 
 
     try:
