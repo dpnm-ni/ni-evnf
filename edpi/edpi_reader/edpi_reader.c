@@ -65,7 +65,7 @@
 #include <sys/un.h>
 
 #define SOCK_PATH "/tmp/sock_edpi"
-#define PIPE_SIZE 10000
+#define PIPE_SIZE 1000000
 
 // static int sock, t, len;
 // static struct sockaddr_un remote;
