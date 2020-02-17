@@ -10,49 +10,56 @@ TOP_DIR=`pwd`
 EDPI_READER_HOME=${TOP_DIR}/edpi_reader
 NDPI_HOME=${TOP_DIR}/nDPI
 
-make_all=false
+make_edpi_only=false
 only_hook_and_config=false
 
-while getopts ':ai:' OPTION; do
+while getopts ':ec:' OPTION; do
     case "$OPTION" in
-        a)
-            make_all=true
+        e)
+            make_edpi_only=true
             ;;
-        i)
+        c)
             only_hook_and_config=true
             ;;
         ?)
-            echo "script usage: $(basename $0) [-a] [-i]"
-            echo "-a: hook, init & make all"
-            echo "-i: hook and config only"
-            echo "default: make edpi only"
+            echo "script usage: $(basename $0) [-e] [-c]"
+            echo "-e: make edpi only"
+            echo "-c: hook and config only"
+            echo "default: make all"
             exit 1
             ;;
     esac
 done
 
-# install required packages
-sudo apt-get install -y build-essential \
-                        autogen \
-                        automake \
-                        autoconf \
-                        libtool \
-                        gcc \
-                        libpcap-dev
+if [[ $make_edpi_only == false ]]; then
+    # install required packages
+    sudo apt-get install -y build-essential \
+                            autogen \
+                            automake \
+                            autoconf \
+                            libtool \
+                            gcc \
+                            libpcap-dev
 
-# sync edpi_reader source
-cp -r ${EDPI_READER_HOME} ${NDPI_HOME}
-
-cd ${NDPI_HOME}
+    # sync edpi_reader source
+    rm -rf ${NDPI_HOME}/edpi_reader
+    cp -r ${EDPI_READER_HOME} ${NDPI_HOME}
+fi
 
 # make edpi only
-if [[ $make_all == false && $only_hook_and_config == false ]]; then
-    cd edpi_reader
+if [[ $make_edpi_only == true && $only_hook_and_config == false ]]; then
+    # remove softlink first
+    rm -f ${EDPI_READER_HOME}/edpi_reader
+
+    cd ${NDPI_HOME}/edpi_reader
+    make clean
+    cp ${EDPI_READER_HOME}/* .
     make
-    ln -sf edpi_reader ${EDPI_READER_HOME}/edpi_reader
+    ln -sf -sf ${NDPI_HOME}/edpi_reader/edpi_reader ${EDPI_READER_HOME}/edpi_reader
     exit 0
 fi
 
+cd ${NDPI_HOME}
 # apply the edpi patch
 git reset --hard
 cp ${EDPI_READER_HOME}/edpi_hook.patch ${NDPI_HOME}/edpi_hook.patch
@@ -71,6 +78,3 @@ fi
 make
 ln -sf ${NDPI_HOME}/edpi_reader/edpi_reader ${EDPI_READER_HOME}/edpi_reader
 
-if [[ ${make_all} == true ]]; then
-    ln -sf ${NDPI_HOME}/example/ndpiReader ${EDPI_READER_HOME}/ndpiReader
-fi
