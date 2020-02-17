@@ -122,7 +122,12 @@ class EDPI(object):
                 #                                                self.d_flow.dst_ip,
                 #                                                self.d_flow.dst_port)
 
+            #
             elif (self.d_flow.flags == 0):
+                # FIXME: nDPI send udp expire when it actually not expired yet, because
+                # nDPI do not receive udp pkt. should check the timeout here instead...
+                if (self.d_flow.protocol == 17):
+                    return
                 key = self.tb_detected_flow.Key(self.d_flow.src_ip,
                                                 self.d_flow.dst_ip,
                                                 self.d_flow.src_port,
