@@ -6,21 +6,20 @@ This repo contains example VNFs for the bellow publications:
 
 ## Requirements
 
-We tested eVNF in Ubuntu 16.04 and 19.10, with kernel v4.14 and v5.4, respectively, but any Ubuntu and kernel version with XDP support (and AF_XDP support, if AF_XDP is used) should work well. An XDP-supported NICs should be used, see [XDP supported drivers](https://github.com/iovisor/bcc/blob/master/docs/kernel-versions.md#xdp). Generic NICs also can work, but expect degraded performance.
-
-If you want to test service function chain with Openstack, use QEMU for the hypevisor and virtio for VM's NIC driver. Set VM's NIC to multiqueue and turn off guest csum. The number of queues should be x2 the number of vCPUs.
-
-```xml
-<driver queues='2'>
-    <guest csum='off'/>
-</driver>
-```
+- We tested eVNF in Ubuntu 16.04 and 19.10, with kernel v4.14 and v5.4, respectively. Any kernel version with XDP support (and AF_XDP support, if AF_XDP is used) should work
+- We use python2 during the development, but python3 should also work
+- An XDP-supported NICs should be used, see [XDP supported drivers](https://github.com/iovisor/bcc/blob/master/docs/kernel-versions.md#xdp). Generic NICs also can work, but expect degraded performance.
+- If you want to test service function chain with Openstack, use QEMU for the hypevisor and virtio for VM's NIC driver. Set VM's NIC to multiqueue and turn off guest `csum`. The number of queues should be x2 the number of vCPUs.
+    ```xml
+    <driver queues='2'>
+        <guest csum='off'/>
+    </driver>
+    ```
 
 ## Installation
 
 - Install [BCC](https://github.com/iovisor/bcc).
 - Install required modules as superuser
-
     ```shell
     sudo pip install -r requirements.txt
     ```
@@ -40,7 +39,6 @@ If you want to test service function chain with Openstack, use QEMU for the hype
 ## Usage
 
 Use `-h` option to see detailed usage for each VNF. For `edpi`, you need to manually run nDPI engine in another terminal after `edpi` is started.
-
 ```shell
 sudo python -m edpi.edpi -h
 ```
