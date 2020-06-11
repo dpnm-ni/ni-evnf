@@ -1,5 +1,7 @@
 #!/usr/bin/python
 
+from __future__ import print_function
+
 import time
 import sys
 import threading
@@ -68,9 +70,9 @@ class ELB(object):
             dst_mac_str = get_mac_address(ip=dst_ip_str)
             if dst_mac_str is not None:
                 self.set_tb_ip_mac(int(event.dst_ip), self._mac_str_to_int(dst_mac_str))
-                print "IP to MAC: ", event.dst_ip, " - ", dst_mac_str
+                print("IP to MAC: ", event.dst_ip, " - ", dst_mac_str)
             else:
-                print "warning: fail to get mac of: ", dst_ip_str
+                print("warning: fail to get mac of: ", dst_ip_str)
 
         self.bpf_lb["events"].open_perf_buffer(_process_event, page_cnt=512)
 
@@ -130,7 +132,7 @@ class ELB(object):
             self.tb_server_ips[k] = leaf
         self.new_server_map = new_server_map
 
-        print "server_weights: ", server_weights
+        print("server_weights: ", server_weights)
 
 
 if __name__ == "__main__":
@@ -145,7 +147,7 @@ if __name__ == "__main__":
     elb.attach_iface()
     elb.open_events()
 
-    print "eBPF prog Loaded"
+    print("eBPF prog Loaded")
     sys.stdout.flush()
 
     # a separated thread to recaculate server distribution based on new server weights
@@ -181,4 +183,4 @@ if __name__ == "__main__":
         elb.detach_iface()
         to_stop.set()
         server_map_updater.join()
-        print "Done"
+        print("Done")

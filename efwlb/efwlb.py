@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import argparse
 import threading
 import time
@@ -25,11 +27,11 @@ if __name__ == "__main__":
     efw.add_port(80, "allow")
     efw.add_allow_subnet((24, (192, 168, 4, 0)))
     # k = efw.tb_subnet_allow.Key(24, (192, 168, 4, 4))
-    # print "val: ", efw.tb_subnet_allow[k]
+    # print("val: ", efw.tb_subnet_allow[k])
 
     elb.open_events()
 
-    print "eBPF prog Loaded"
+    print("eBPF prog Loaded")
     sys.stdout.flush()
 
      # a separated thread to recaculate server distribution based on new server weights
@@ -65,4 +67,4 @@ if __name__ == "__main__":
         efw.detach_iface()
         to_stop.set()
         server_map_updater.join()
-        print "Done"
+        print("Done")

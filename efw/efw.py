@@ -1,5 +1,7 @@
 #!/usr/bin/python
 
+from __future__ import print_function
+
 import threading
 import time
 import sys
@@ -58,7 +60,7 @@ class EFW(object):
         elif mode == "block":
             leaf = self.tb_tcp_dest_lookup.Leaf(2)
         else:
-            print "warning: unsupported port mode: ", mode
+            print("warning: unsupported port mode: ", mode)
             exit(1)
 
         self.tb_tcp_dest_lookup[k] = leaf
@@ -82,7 +84,7 @@ class EFW(object):
             while True:
                 self.bpf.kprobe_poll()
         except Exception as e:
-            print e
+            print(e)
             pass
 
 
@@ -99,7 +101,7 @@ if __name__ == "__main__":
     efw.add_allow_subnet((24, (10, 10, 20, 0)))
     # k = efw.tb_subnet_allow.Key(24, (192, 168, 4, 4))
 
-    print "eBPF prog Loaded"
+    print("eBPF prog Loaded")
     sys.stdout.flush()
 
     try:
@@ -111,4 +113,4 @@ if __name__ == "__main__":
 
     finally:
         efw.detach_iface()
-        print "Done"
+        print("Done")

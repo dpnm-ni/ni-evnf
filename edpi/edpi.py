@@ -1,5 +1,7 @@
 #!/usr/bin/python
 
+from __future__ import print_function
+
 import time
 import sys
 import os
@@ -65,9 +67,9 @@ class EDPI(object):
             pass
         sock.bind(self.SOCK_PATH)
         sock.listen(1)
-        print "Trying to connect to nDPI engine..."
+        print("Trying to connect to nDPI engine...")
         conn, addr = sock.accept()
-        print "Connected"
+        print("Connected")
         self.conn = conn
 
     def attach_iface(self):
@@ -90,7 +92,7 @@ class EDPI(object):
             while True:
                 self.bpf.kprobe_poll()
         except Exception as e:
-            print e
+            print(e)
             pass
 
     def start_process_detected_flow_thread(self):
@@ -103,7 +105,7 @@ class EDPI(object):
             while True:
                 self._process_detected_flow()
         except Exception as e:
-            print e
+            print(e)
             pass
 
     def _process_detected_flow(self):
@@ -117,10 +119,10 @@ class EDPI(object):
                                                 self.d_flow.protocol)
                 self.tb_detected_flow[key] = self.DETECTED
 
-                # print "new elephant flow: {}:{}->{}:{}".format(self.d_flow.src_ip,
+                # print("new elephant flow: {}:{}->{}:{}".format(self.d_flow.src_ip,
                 #                                                self.d_flow.src_port,
                 #                                                self.d_flow.dst_ip,
-                #                                                self.d_flow.dst_port)
+                #                                                self.d_flow.dst_port))
 
             #
             elif (self.d_flow.flags == 0):
@@ -135,12 +137,12 @@ class EDPI(object):
                                                 self.d_flow.protocol)
                 del self.tb_detected_flow[key]
 
-                # print "idle elephant flow: {}:{}->{}:{}".format(self.d_flow.src_ip,
+                # print("idle elephant flow: {}:{}->{}:{}".format(self.d_flow.src_ip,
                 #                                                 self.d_flow.dst_ip,
                 #                                                 self.d_flow.src_port,
-                #                                                 self.d_flow.dst_port)
+                #                                                 self.d_flow.dst_port))
             else:
-                print "warning: unsupported flags: ", self.d_flow.flags
+                print("warning: unsupported flags: ", self.d_flow.flags)
 
             # TODO: else: deleted flows
 
@@ -160,7 +162,7 @@ if __name__ == "__main__":
     edpi = EDPI(args.iface, args.is_af_xdp, args.is_inline)
     edpi.attach_iface()
     edpi.start_newip_hander_thread()
-    print "eBPF prog Loaded"
+    print("eBPF prog Loaded")
     sys.stdout.flush()
 
     edpi.init_unix_sock()
@@ -179,4 +181,4 @@ if __name__ == "__main__":
     finally:
         edpi.detach_iface()
         edpi.conn.close()
-        print "Done"
+        print("Done")

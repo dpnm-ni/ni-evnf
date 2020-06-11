@@ -1,4 +1,5 @@
 #!/usr/bin/python
+from __future__ import print_function
 
 import threading
 import socket
@@ -69,9 +70,9 @@ def setup_newip_handler(bpf_obj, tb_ip_mac, tb_new_ip_events):
             _set_tb_ip_mac(tb_ip_mac,
                            int(event.dst_ip),
                            mac_str_to_int(dst_mac_str))
-            print "IP to MAC: ", dst_ip_str, " - ", dst_mac_str
+            print("IP to MAC: ", dst_ip_str, " - ", dst_mac_str)
         else:
-            print "warning: fail to get mac of: ", dst_ip_str
+            print("warning: fail to get mac of: ", dst_ip_str)
 
     tb_new_ip_events.open_perf_buffer(_process_event, page_cnt=512)
 

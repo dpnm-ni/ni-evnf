@@ -1,5 +1,7 @@
 #!/usr/bin/python
 
+from __future__ import print_function
+
 import threading
 import time
 import sys
@@ -69,7 +71,7 @@ class EFT(object):
             while True:
                 self.bpf.kprobe_poll()
         except Exception as e:
-            print e
+            print(e)
             pass
 
     def start_print_stats_thread(self, interval):
@@ -79,7 +81,7 @@ class EFT(object):
         print_stats_thread.start()
 
     def print_stats_final(self):
-        print "\nSUMMARY:"
+        print("\nSUMMARY:")
         self._print_stats()
 
     def _print_stats_poll(self, interval):
@@ -88,7 +90,7 @@ class EFT(object):
                 time.sleep(interval)
                 self._print_stats()
         except Exception as e:
-            print e
+            print(e)
             pass
 
     def _print_stats(self):
@@ -116,7 +118,7 @@ class EFT(object):
 
         message_arr.append('\n')
         message = '\n'.join(mess for mess in message_arr)
-        print message
+        print(message)
 
     def _sum_flow_stat(self, flow_stat):
         pkt_cnt = sum([flow_stat[i].pkt_cnt for i in self.cpu_range])
@@ -149,7 +151,7 @@ if __name__ == "__main__":
     eft.start_newip_hander_thread()
     eft.start_print_stats_thread(args.interval)
 
-    print "eBPF prog Loaded"
+    print("eBPF prog Loaded")
     sys.stdout.flush()
 
     try:
@@ -165,4 +167,4 @@ if __name__ == "__main__":
     finally:
         eft.print_stats_final()
         eft.detach_iface()
-        print "Done"
+        print("Done")
