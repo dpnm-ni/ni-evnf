@@ -25,7 +25,7 @@ This repo contains example VNFs for the bellow publications:
     ```
 
 ## Configuration
-- `elb` use direct routing, thus the web server need to support direct routing.
+- `elb` use direct routing, thus the web server need to support direct routing. Follow [this](https://discourse.haproxy.org/t/transparent-proxy-configure-backend-servers/4597/2) to config web servers to route traffic back to the `elb` gateway.
 - `edpi` requires compilation and `pf_ring` kernel module. More details at [PF_RING AF_XDP](https://www.ntop.org/guides/pf_ring/modules/af_xdp.html)
     ```bash
     cd edpi
